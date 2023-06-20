@@ -1,0 +1,118 @@
+---
+title: "s1-1 mRNA quantification"
+author: "Yoichiro Sugimoto"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+vignette: >
+  %\VignetteIndexEntry{Bioconductor style for PDF documents}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+output:
+   html_document:
+     highlight: haddock
+     toc: yes
+     toc_depth: 2
+     keep_md: yes
+     fig_width: 5
+     fig_height: 5
+---
+
+# Overview
+
+The abundance of mRNA will be quantified by `Salmon`.
+
+
+# Setup
+
+
+```{r load packages, message = FALSE, warning = FALSE}
+
+project.dir <- "/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB"
+
+renv::restore("/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB/R")
+
+processors <- 7
+
+temp <- sapply(list.files(
+    file.path(project.dir, "R/functions"),
+    full.names = TRUE
+), source)
+
+
+```
+
+## The input and output files and the directories
+
+```{r setup directories}
+
+annot.dir <- file.path(project.dir, "annotation/")
+annot.mm39.dir <- file.path(annot.dir, "mm39_annotation")
+annot.mm39.raw.dir <- file.path(annot.mm39.dir, "raw")
+salmon.index.dir <- file.path(annot.dir, "mm39_annotation/salmon_indices/") 
+
+fq.dir <- file.path(project.dir, "data/fastq")
+
+results.dir <- file.path(project.dir, "results")
+s1.dir <- file.path(results.dir, "s1")
+
+create.dirs(c(
+    results.dir,
+    s1.dir
+))
+
+
+```
+
+# Quantify mRNAs
+
+
+```{r download gtf files}
+
+sample.dt <- file.path(
+    project.dir, "data/sample_data/20210401_sample_data.csv"
+) %>% fread
+
+quantmRNAs <- function(dt.idx, sample.dt, s1.dir){
+    
+    fq.file.name <- sample.dt[dt.idx, file_name]
+    sample.name <- sample.dt[dt.idx, sample_name]
+
+    fqs <- file.path(
+        fq.dir,
+        paste0(fq.file.name, c("_1.fastq.gz", "_2.fastq.gz"))
+    )
+
+    salmon.dir <- file.path("/fast/AG_Sugimoto/home/users/yoichiro/software/from_source/salmon-1.9.0_linux_x86_64")
+    
+    paste(
+        file.path(salmon.dir, "bin", "salmon"),
+        "quant",
+        "-p", processors,
+        "-i", file.path(salmon.index.dir, "transcripts_index"),
+        "-l", "IU",
+        "-1", fqs[1],
+        "-2", fqs[2],
+        "--validateMappings",
+        "--seqBias", "--gcBias", "--posBias",
+        "-o", file.path(s1.dir, sample.name)
+    ) %>%
+        system.cat
+
+    return()
+}
+
+lapply(
+    1:nrow(sample.dt),
+    quantmRNAs,
+    sample.dt = sample.dt,
+    s1.dir = s1.dir
+)
+
+```
+
+# Session information
+
+```{r session info}
+
+sessioninfo::session_info()
+
+```

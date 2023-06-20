@@ -1,0 +1,214 @@
+---
+title: "sp-1 Preparation of Salmon index"
+author: "Yoichiro Sugimoto"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+vignette: >
+  %\VignetteIndexEntry{Bioconductor style for PDF documents}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+output:
+   html_document:
+     highlight: haddock
+     toc: yes
+     toc_depth: 2
+     keep_md: yes
+     fig_width: 5
+     fig_height: 5
+---
+
+# Overview
+
+Salmon index is prepared.
+
+
+# Setup
+
+
+```{r load packages, message = FALSE, warning = FALSE}
+
+project.dir <- "/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB"
+
+renv::restore("/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB/R")
+
+library("rtracklayer")
+
+options(timeout = 10000) # Downloading genome takes a long time
+
+processors <- 15
+
+temp <- sapply(list.files(
+    file.path(project.dir, "R/functions"),
+    full.names = TRUE
+), source)
+
+
+```
+
+## The input and output files and the directories
+
+```{r setup directories}
+
+annot.dir <- file.path(project.dir, "annotation/")
+annot.mm39.dir <- file.path(annot.dir, "mm39_annotation")
+annot.mm39.raw.dir <- file.path(annot.mm39.dir, "raw")
+salmon.index.dir <- file.path(annot.dir, "mm39_annotation/salmon_indices/") 
+annot.ps.dir <- file.path(annot.dir, "mm39_annotation/processed_data/")
+
+create.dirs(c(
+    annot.dir,
+    annot.mm39.dir,
+    annot.mm39.raw.dir,
+    salmon.index.dir,
+    annot.ps.dir
+))
+
+
+```
+
+# Download GTF and fasta files
+
+
+```{r download gtf files}
+
+gff3.url <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M31/gencode.vM31.primary_assembly.annotation.gff3.gz"
+tx.fasta.url <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M31/gencode.vM31.transcripts.fa.gz"
+genome.fasta.url <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M31/GRCm39.primary_assembly.genome.fa.gz"
+
+file.prefix <- "GRCm39_GENCODE_M31"
+
+gff3.file <- file.path(
+    annot.mm39.raw.dir,
+    paste0(
+        file.prefix,
+        "_",
+        format(as.POSIXlt(Sys.time(), "GMT"), c("%Y_%m%d_%H%M%S")),
+        ".gff3.gz")
+)
+
+download.file(
+    url = gff3.url,
+    destfile = gff3.file
+)
+
+tx.fasta.file <- file.path(
+    annot.mm39.raw.dir,
+    paste0(
+        file.prefix,
+        "_",
+        format(as.POSIXlt(Sys.time(), "GMT"), c("%Y_%m%d_%H%M%S")),
+        "_tx_fasta.gz")
+)
+
+download.file(
+    url = tx.fasta.url,
+    destfile = tx.fasta.file
+)
+
+genome.fasta.file <- file.path(
+    annot.mm39.raw.dir,
+    paste0(
+        file.prefix,
+        "_",
+        format(as.POSIXlt(Sys.time(), "GMT"), c("%Y_%m%d_%H%M%S")),
+        "_genome_fasta.gz")
+)
+
+download.file(
+    url = genome.fasta.url,
+    destfile = genome.fasta.file
+)
+
+```
+
+# Summary of tx information
+
+
+```{r get tx information}
+
+all.tx.gr <- rtracklayer::import(gff3.file)
+
+all.tx.dt <- as.data.frame(all.tx.gr) %>%
+    data.table
+
+all.tx.dt <- all.tx.dt[, .(
+    transcript_id, gene_id, gene_name,
+    gene_type, transcript_type, seqnames
+)][!is.na(transcript_id)][!duplicated(transcript_id)]
+
+all.tx.data.file <- file.path(
+    annot.ps.dir,
+    "all-tx-info.csv"
+)
+
+fwrite(all.tx.dt, file = all.tx.data.file)
+
+```
+
+# Preparation for Salmon index
+
+
+```{r prep for salmon index}
+
+decoy.tx.file <- file.path(
+    annot.ps.dir,
+    "decoy.txt"
+)
+
+genome.bs <- rtracklayer::import(
+                              genome.fasta.file,
+                              format = "fasta"
+                          )
+
+decoy.dt <- data.table(
+    seqnames = names(genome.bs)
+)
+
+decoy.dt[, seqnames := str_split_fixed(seqnames, " ", n = 2)[, 1]]
+
+fwrite(
+    decoy.dt,
+    decoy.tx.file, col.names = FALSE
+)
+
+gentrome.fa.file <- file.path(
+    annot.ps.dir,
+    "gentrome.fa.gz"
+)
+
+temp <- paste(
+    "cat",
+    tx.fasta.file, genome.fasta.file, ">",
+    gentrome.fa.file
+) %>%
+    system.cat
+
+```
+
+
+# Create Salmon index
+
+
+```{r export tx seqs}
+
+salmon.dir <- file.path("/fast/AG_Sugimoto/home/users/yoichiro/software/from_source/salmon-1.9.0_linux_x86_64")
+
+paste(
+    file.path(salmon.dir, "bin", "salmon"),
+    "index",
+    "-t", gentrome.fa.file,
+    "-d", decoy.tx.file,
+    "-p", processors,
+    "-i", file.path(salmon.index.dir, "transcripts_index"),
+    "--gencode"
+) %>%
+    system.cat
+
+```
+
+# Session information
+
+```{r session info}
+
+sessioninfo::session_info()
+
+```

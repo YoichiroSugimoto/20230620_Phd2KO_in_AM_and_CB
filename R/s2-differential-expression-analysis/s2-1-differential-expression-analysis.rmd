@@ -1,0 +1,532 @@
+---
+title: "s2-1 Differential expression analysis"
+author: "Yoichiro Sugimoto"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+vignette: >
+  %\VignetteIndexEntry{Bioconductor style for PDF documents}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+output:
+   html_document:
+     highlight: haddock
+     toc: yes
+     toc_depth: 2
+     keep_md: yes
+     fig_width: 5
+     fig_height: 5
+---
+
+# Overview
+
+
+
+# Setup
+
+
+```{r load packages, message = FALSE, warning = FALSE}
+
+project.dir <- "/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB"
+
+renv::restore("/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB/R")
+
+library("DESeq2")
+library("tximport")
+library("apeglm")
+
+processors <- 7
+
+temp <- sapply(list.files(
+    file.path(project.dir, "R/functions"),
+    full.names = TRUE
+), source)
+
+
+```
+
+## The input and output files and the directories
+
+```{r setup directories}
+
+annot.dir <- file.path(project.dir, "annotation/")
+annot.ps.dir <- file.path(annot.dir, "mm39_annotation/processed_data/")
+
+results.dir <- file.path(project.dir, "results")
+s1.dir <- file.path(results.dir, "s1")
+s2.dir <- file.path(results.dir, "s2")
+
+create.dirs(c(
+    s2.dir
+))
+
+```
+
+# Import data
+
+```{r download gtf files}
+
+sample.dt <- file.path(
+    project.dir, "data/sample_data/20210401_sample_data.csv"
+) %>% fread
+
+## By setting leves in this way, log2 fold change will show CB / AM and PHD2KO / WT
+sample.dt[, `:=`(
+    tissue = factor(tissue, levels = c("AM", "CB")),
+    Phd2 = factor(Phd2, levels = c("WT", "PHD2KO"))
+)]
+
+## Public sample data
+public.sample.dt <- file.path(
+    project.dir, "data/sample_data/public_data_source.csv"
+) %>% fread
+
+public.sample.dt[, `:=`(
+    tissue = str_split_fixed(sample_name, "_", n = 3)[, 2] %>%
+        factor(levels = c("AM", "CB"))
+)]
+
+
+## Annotation
+all.tx.dt <- file.path(
+    annot.ps.dir, "all-tx-info.csv"
+) %>%
+    fread
+
+tx2gene.dt <- all.tx.dt[, .(transcript_id, gene_id)]
+setnames(
+    tx2gene.dt,
+    old = c("transcript_id", "gene_id"),
+    new = c("TXNAME", "GENEID")
+)
+
+all.gene.dt <- all.tx.dt[!duplicated(gene_id)][
+  , .(gene_id, gene_name, gene_type, seqnames)
+]
+
+```
+
+# Differential expression analysis
+
+## DESeq2 object construction
+
+
+```{r deseq2 object}
+
+createDESeq2Object <- function(sl.sample.dt, design.formula){
+    tx.files <- file.path(
+        s1.dir,
+        sl.sample.dt[, sample_name],
+        "quant.sf"
+    )
+
+    names(tx.files) <- sl.sample.dt[, sample_name]
+
+    txi <- tximport(tx.files, type = "salmon", tx2gene = tx2gene.dt)
+
+    dds <- DESeqDataSetFromTximport(
+        txi,
+        colData = sl.sample.dt,
+        design = design.formula
+    )
+
+    return(dds)
+}
+
+dds.all <- createDESeq2Object(
+    sl.sample.dt = sample.dt,
+    design.formula = ~ tissue + Phd2 + tissue:Phd2
+)
+
+vsd <- vst(dds.all, blind = TRUE)
+
+extractTPM <- function(sl.sample.dt){
+    tx.files <- file.path(
+        s1.dir,
+        sl.sample.dt[, sample_name],
+        "quant.sf"
+    )
+
+    names(tx.files) <- sl.sample.dt[, sample_name]
+
+    txi <- tximport(
+        tx.files, type = "salmon", tx2gene = tx2gene.dt,
+        countsFromAbundance = "no"
+    )
+
+    count.dt <- as.data.frame(txi$abundance) %>% data.table(keep.rownames = "gene_id")
+    
+    return(count.dt)
+}
+
+extractCount <- function(sl.sample.dt){
+    tx.files <- file.path(
+        s1.dir,
+        sl.sample.dt[, sample_name],
+        "quant.sf"
+    )
+
+    names(tx.files) <- sl.sample.dt[, sample_name]
+
+    txi <- tximport(
+        tx.files, type = "salmon", tx2gene = tx2gene.dt,
+        countsFromAbundance = "no"
+    )
+
+    count.dt <- as.data.frame(txi$counts) %>% data.table(keep.rownames = "gene_id")
+    
+    return(count.dt)
+}
+
+
+tpm.count.dt <- extractTPM(sample.dt)
+fwrite(
+    tpm.count.dt,
+    file.path(s2.dir, "TPM.csv")
+)
+
+raw.count.dt <- extractCount(sample.dt)
+fwrite(
+    raw.count.dt,
+    file.path(s2.dir, "count.csv")
+)
+
+save(
+    dds.all, vsd, tpm.count.dt,
+    file = file.path(s2.dir, "DESeq2-data-consolidated.Rdata")
+)
+
+```
+
+```{r PCA_analysis, fig.width = 5, fig.height = 5}
+
+plotPCA(
+    vsd, intgroup=c("tissue", "Phd2")
+) +
+    geom_point(size = 3) +
+    labs(color = "tissue:genotype") +
+    ggsci::scale_color_jama() +
+    theme(
+        aspect.ratio = 1
+    )
+
+```
+
+# Analysis of differential expression
+
+## Shared functions
+
+
+```{r shared_functions}
+
+extractPerConditionBaseMean <- function(sl.sample.dt, sl.conditions = c("WT", "PHD2KO"), condition.idx = 2){
+    ## sl.conditions: conditions to be compared
+    ## condition.idx: position of the sl.conditions (e.g. CB_WT_A)
+    
+    tx.files <- file.path(
+        s1.dir,
+        sl.sample.dt[, sample_name],
+        "quant.sf"
+    )
+
+    names(tx.files) <- sl.sample.dt[, sample_name]
+
+    txi <- tximport(
+        tx.files, type = "salmon", tx2gene = tx2gene.dt,
+        countsFromAbundance = "no"
+    )
+
+    count.dt <- as.data.frame(txi$abundance) %>% data.table(keep.rownames = "gene_id")
+    
+    d.count.dt <- melt(
+        count.dt,
+        id.vars = "gene_id"
+    ) %>%
+        {.[, condition := case_when(
+                 str_split_fixed(variable, "_", n = 3)[, condition.idx] == sl.conditions[1] ~
+                     paste0("TPM_", sl.conditions[1]),
+                 str_split_fixed(variable, "_", n = 3)[, condition.idx] == sl.conditions[2] ~
+                     paste0("TPM_", sl.conditions[2])
+             )]} %>%
+        {.[, list(TPM = mean(value)), by = list(condition, gene_id)]} %>%
+        dcast(gene_id ~ condition, value.var = "TPM")
+    
+    return(d.count.dt)
+}
+
+
+```
+
+
+## CB PHD KO
+
+For this analysis, all CB samples will be analysed.
+
+```{r cb_phd_ko}
+
+res.cb.count.dt <- extractPerConditionBaseMean(
+    sl.sample.dt = sample.dt[tissue == "CB"]
+)
+
+dds.cb <- createDESeq2Object(
+    sl.sample.dt = sample.dt[tissue == "CB"],
+    design.formula = ~ batch + Phd2
+)
+
+dds.cb <- DESeq(
+    dds.cb,
+    test = "LRT",
+    reduced = ~ batch
+)
+
+res.cb.dt <- results(dds.cb) %T>%
+    plotMA(ylim = c(-2,2), main = "CB Phd2 KO") %>%
+    as.data.frame %>%
+    data.table(keep.rownames = "gene_id") %>%
+    {.[, .(gene_id, log2FoldChange, padj)]}
+setnames(res.cb.dt, old = "log2FoldChange", new = "log2fc")
+
+res.shrfc.cb.dt <- lfcShrink(
+    dds.cb,
+    coef = "Phd2_PHD2KO_vs_WT",
+    type = "apeglm"
+) %T>%
+    plotMA(ylim = c(-2,2), main = "CB Phd2 KO (fc shrunk)") %>%
+    as.data.frame %>%
+data.table(keep.rownames = "gene_id")
+
+res.shrfc.cb.dt <- res.shrfc.cb.dt[, .(gene_id, log2FoldChange)]
+setnames(res.shrfc.cb.dt, old = "log2FoldChange", new = "shrlog2fc")
+
+res.cb.dt <- Reduce(
+    function(...) merge(..., all = TRUE, by = "gene_id"),
+    list(
+        res.cb.dt,
+        res.cb.count.dt,
+        res.shrfc.cb.dt
+    ))
+
+key.data.cols <- c("TPM_WT", "TPM_PHD2KO", "log2fc", "shrlog2fc", "padj")
+
+res.cb.dt <- res.cb.dt[, c("gene_id", key.data.cols), with = FALSE]
+
+setnames(
+    res.cb.dt,
+    old = key.data.cols,
+    new = paste0(key.data.cols, "__CB_PHD2KO")
+)
+
+```
+
+# AM Phd2 KO
+
+
+```{r AM_Phd2_KO}
+
+res.rd.am.count.dt <- extractPerConditionBaseMean(
+    sl.sample.dt = sample.dt[tissue == "AM"]
+)
+
+rd.dds.am <- createDESeq2Object(
+    sl.sample.dt = sample.dt[tissue == "AM"],
+    design.formula = ~ batch + Phd2
+)
+
+rd.dds.am <- DESeq(
+    rd.dds.am,
+    test = "LRT",
+    reduced = ~ batch
+)
+
+res.rd.am.dt <- results(rd.dds.am) %T>%
+    plotMA(ylim = c(-2,2), main = "AM Phd2 KO (SMART-Seq only)") %>%
+    as.data.frame %>%
+    data.table(keep.rownames = "gene_id") %>%
+    {.[, .(gene_id, log2FoldChange, padj)]}
+setnames(res.rd.am.dt, old = "log2FoldChange", new = "log2fc")
+
+res.shrfc.rd.am.dt <- lfcShrink(
+    rd.dds.am,
+    coef = "Phd2_PHD2KO_vs_WT",
+    type = "apeglm"
+) %T>%
+    plotMA(ylim = c(-2,2), main = "AM Phd2 KO (shrunk), SMART-Seq only") %>%
+    as.data.frame %>%
+data.table(keep.rownames = "gene_id")
+
+res.shrfc.rd.am.dt <- res.shrfc.rd.am.dt[, .(gene_id, log2FoldChange)]
+setnames(res.shrfc.rd.am.dt, old = "log2FoldChange", new = "shrlog2fc")
+
+res.rd.am.dt <- Reduce(
+    function(...) merge(..., all = TRUE, by = "gene_id"),
+    list(
+        res.rd.am.dt,
+        res.rd.am.count.dt,
+        res.shrfc.rd.am.dt
+    ))
+
+res.rd.am.dt <- res.rd.am.dt[, c("gene_id", key.data.cols), with = FALSE]
+
+setnames(
+    res.rd.am.dt,
+    old = key.data.cols,
+    new = paste0(key.data.cols, "__AM_PHD2KO")
+)
+
+
+```
+
+
+# Tissue differences
+
+Only analyse WT cells.
+
+```{r tissue differences}
+
+res.tissue2.count.dt <- extractPerConditionBaseMean(
+    sl.sample.dt = sample.dt[Phd2 == "WT"],
+    sl.conditions = c("AM", "CB"),
+    condition.idx = 1
+)
+
+dds.tissue2 <- createDESeq2Object(
+    sl.sample.dt = sample.dt[Phd2 == "WT"],
+    design.formula = ~ tissue
+)
+
+dds.tissue2 <- DESeq(
+    dds.tissue2,
+    test = "LRT", # Added on 20230611
+    reduced = ~ 1 # Added on 20230611
+)
+
+res.tissue2.dt <- results(dds.tissue2) %T>%
+    plotMA(ylim = c(-2,2), main = "Tissue (AM vs CB)") %>%
+    as.data.frame %>%
+    data.table(keep.rownames = "gene_id") %>%
+    {.[, .(gene_id, log2FoldChange, padj)]}
+setnames(res.tissue2.dt, old = "log2FoldChange", new = "log2fc")
+
+res.shrfc.tissue2.dt <- lfcShrink(
+    dds.tissue2,
+    coef = "tissue_CB_vs_AM",
+    type = "apeglm"
+) %T>%
+    plotMA(ylim = c(-2,2), main = "Tissue (AM vs CB) (shrunk)") %>%
+    as.data.frame %>%
+data.table(keep.rownames = "gene_id")
+
+res.shrfc.tissue2.dt <- res.shrfc.tissue2.dt[, .(gene_id, log2FoldChange)]
+setnames(res.shrfc.tissue2.dt, old = "log2FoldChange", new = "shrlog2fc")
+
+res.tissue2.dt <- Reduce(
+    function(...) merge(..., all = TRUE, by = "gene_id"),
+    list(
+        res.tissue2.dt,
+        res.tissue2.count.dt,
+        res.shrfc.tissue2.dt
+    ))
+
+key.data.cols.2 <- c("TPM_AM", "TPM_CB", "log2fc", "shrlog2fc", "padj")
+
+res.tissue2.dt <- res.tissue2.dt[, c("gene_id", key.data.cols.2), with = FALSE]
+
+setnames(
+    res.tissue2.dt,
+    old = key.data.cols.2,
+    new = paste0(key.data.cols.2, "__Tissue")
+)
+
+
+```
+
+# Public data
+
+## Chang et al.
+
+
+```{r chang et al}
+
+dds.public <- createDESeq2Object(
+    sl.sample.dt = public.sample.dt,
+    design.formula = ~ tissue
+)
+
+res.public.count.dt <- extractPerConditionBaseMean(
+    sl.sample.dt = public.sample.dt,
+    sl.conditions = c("AM", "CB"),
+    condition.idx = 2
+)
+
+dds.public <- DESeq(
+    dds.public,
+    test = "LRT", # Added on 20230611
+    reduced = ~ 1 # Added on 20230611
+)
+
+public.res.dt <- results(dds.public) %>%
+    as.data.frame %>%
+    data.table(keep.rownames = "gene_id")
+setnames(public.res.dt, old = "log2FoldChange", new = "log2fc")
+
+res.shrfc.public.dt <- lfcShrink(
+    dds.public,
+    coef = "tissue_CB_vs_AM",
+    type = "apeglm"
+) %T>%
+    plotMA(ylim = c(-2,2), main = "Tissue (Chang, AM vs CB) (shrunk)") %>%
+    as.data.frame %>%
+data.table(keep.rownames = "gene_id")
+
+res.shrfc.public.dt <- res.shrfc.public.dt[, .(gene_id, log2FoldChange)]
+setnames(res.shrfc.public.dt, old = "log2FoldChange", new = "shrlog2fc")
+
+public.res.dt <- Reduce(
+    function(...) merge(..., all = TRUE, by = "gene_id"),
+    list(
+        public.res.dt,
+        res.public.count.dt,
+        res.shrfc.public.dt
+    ))
+
+public.res.dt <- public.res.dt[, c("gene_id", key.data.cols.2), with = FALSE]
+
+setnames(
+    public.res.dt,
+    old = key.data.cols.2,
+    new = paste0(key.data.cols.2, "__Tissue_Chang")
+)
+
+```
+
+# Merge all data
+
+
+```{r merga all data}
+
+res.summary.dt <- Reduce(
+    function(...) merge(..., all = TRUE, by = "gene_id"),
+    list(all.gene.dt, res.cb.dt, res.rd.am.dt, res.tissue2.dt, public.res.dt)
+)
+
+```
+
+
+# Export the results of all analysis
+
+
+```{r plot the results of all analysis}
+
+fwrite(
+    res.summary.dt,
+    file.path(s2.dir, "de-summary-consolidated.csv")
+)
+
+```
+
+
+# Session information
+
+```{r session info}
+
+sessioninfo::session_info()
+
+```

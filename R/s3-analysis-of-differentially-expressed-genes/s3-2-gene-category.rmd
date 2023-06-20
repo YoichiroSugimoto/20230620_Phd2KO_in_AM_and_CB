@@ -1,0 +1,290 @@
+---
+title: "s3-2 Analysis of the category of differentially expressed genes"
+author: "Yoichiro Sugimoto"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+vignette: >
+  %\VignetteIndexEntry{Bioconductor style for PDF documents}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+output:
+   html_document:
+     highlight: haddock
+     toc: yes
+     toc_depth: 2
+     keep_md: yes
+     fig_width: 5
+     fig_height: 5
+---
+
+# Overview
+
+
+
+# Setup
+
+
+```{r load packages, message = FALSE, warning = FALSE}
+
+project.dir <- "/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB"
+
+renv::restore(file.path(project.dir, "R"))
+
+library("ggrepel")
+
+library("org.Mm.eg.db")
+library("GO.db")
+
+processors <- 7
+
+temp <- sapply(list.files(
+    file.path(project.dir, "R/functions"),
+    full.names = TRUE
+), source)
+
+set.seed(1)
+
+```
+
+## The input and output files and the directories
+
+```{r setup directories}
+
+annot.dir <- file.path(project.dir, "annotation/")
+annot.ps.dir <- file.path(annot.dir, "mm39_annotation/processed_data/")
+
+results.dir <- file.path(project.dir, "results")
+s2.dir <- file.path(results.dir, "s2")
+s3.dir <- file.path(results.dir, "s3")
+
+create.dirs(c())
+
+```
+
+# Import data
+
+```{r download gtf files}
+
+res.summary.dt <- fread(file.path(s2.dir, "all-de-results.csv"))
+
+returnCappedVal <- function(val, log2fc.cap = 7.5){
+    case_when(
+        abs(val) > log2fc.cap ~ sign(val) * log2fc.cap,
+        TRUE ~ val
+    )
+}
+
+res.summary.dt[, `:=`(
+    concordant_regulation = case_when(
+        tissue_specific_genes == "CB specific" & PHD2_regulated_in_AM == "PHD2KO_induced" ~
+            "CB specific and Phd2KO induced in AM",
+        tissue_specific_genes == "AM specific" & PHD2_regulated_in_AM == "PHD2KO_repressed" ~
+            "AM specific and Phd2KO repressed in AM"
+    ),
+    capped_log2fc__CB_PHD2KO = returnCappedVal(log2fc__CB_PHD2KO),
+    capped_log2fc__AM_PHD2KO = returnCappedVal(log2fc__AM_PHD2KO),
+    capped_log2fc__Tissue = returnCappedVal(log2fc__Tissue)
+)]
+
+go.dt <- AnnotationDbi::select(
+                            org.Mm.eg.db,
+                            keys(org.Mm.eg.db, "GO"), "ENSEMBL", "GO"
+                        ) %>%
+    data.table()
+
+setnames(go.dt, old = "ENSEMBL", new = "gene_id")
+
+go.dt[, `:=`(
+    gene_group = case_when(
+        GO %in% c(
+                    "GO:0005267"
+                ) ~ "potassium channel"
+        ## GO %in% c(
+        ##             as.list(GOMFOFFSPRING["GO:0005267"])$`GO:0005267`
+        ##         ) ~ "potassium channel"
+        ## GO %in% c(
+        ##             "GO:0005739",
+        ##             as.list(GOCCOFFSPRING["GO:0005739"])$`GO:0005739`
+        ##         ) ~ "mitochondrial",
+        ## GO %in% c(
+        ##             "GO:0005216",
+        ##             as.list(GOMFOFFSPRING["GO:0005216"])$`GO:0005216`
+        ##         ) ~ "ion channel",
+        ## GO %in% c(
+        ##             "GO:0007186",
+        ##             as.list(GOBPOFFSPRING["GO:0007186"])$`GO:0007186`
+        ##         ) ~ "GPCR" # G protein-coupled receptor signaling pathway
+    ) ## >%
+        ## factor(levels = c("mitochondrial", "ion channel", "GPCR"))
+)]
+
+go.dt <- go.dt[!duplicated(paste(gene_id, gene_group))]
+
+go.dt <- go.dt[!is.na(gene_id) & !is.na(gene_group), .(gene_id, gene_group)]
+
+collapsed.class.dt <- go.dt[
+  , lapply(.SD, paste, collapse = ", "),
+    by = list(gene_id), .SDcols = "gene_group"
+]
+
+res.by.class.dt <- merge(
+    collapsed.class.dt,
+    res.summary.dt,
+    by = "gene_id",
+    all.y = TRUE
+)
+
+res.by.class.dt <- res.by.class.dt[
+  , tissue_vs_AM_PHD2KO_comparison_flag :=
+        !is.na(log2fc__Tissue) & !is.na(padj__AM_PHD2KO)
+]
+
+```
+
+## Export data
+
+
+```{r export_data}
+
+export.dt <- copy(res.by.class.dt)[
+   ,.(
+        gene_id, gene_name, gene_type, gene_group,
+        TPM_WT__CB_PHD2KO, TPM_PHD2KO__CB_PHD2KO, TPM_WT__AM_PHD2KO, TPM_PHD2KO__AM_PHD2KO,
+        log2fc__Tissue, padj__Tissue, tissue_specific_genes,
+        log2fc__AM_PHD2KO, padj__AM_PHD2KO, PHD2_regulated_in_AM,
+        log2fc__CB_PHD2KO, padj__CB_PHD2KO, PHD2_regulated_in_CB
+    )]
+
+setnames(
+    export.dt,
+    old = c(
+        "TPM_WT__CB_PHD2KO", "TPM_PHD2KO__CB_PHD2KO",
+        "TPM_WT__AM_PHD2KO", "TPM_PHD2KO__AM_PHD2KO",
+        "gene_group"
+    ),
+    new = c("TPM_CB_WT", "TPM_CB_PHD2KO", "TPM_AM_WT", "TPM_AM_PHD2KO", "potassium_channel")
+)
+
+export.dt[, potassium_channel := case_when(
+                potassium_channel == "potassium channel" ~ "Yes",
+                TRUE ~ ""
+            )]
+
+fwrite(
+    export.dt,
+    file.path(s3.dir, "summary-of-differentially-expressed-genes.csv")
+)
+
+```
+
+
+# Analysis of differentially expressed genes by class
+
+
+## Acute oxygen sensing associated genes
+
+
+```{r acute-oxygen-sensing}
+
+acute.oxygen.genes.dt <- fread(
+    file.path(project.dir, "data/ref/candidate_genes_in_acute_oxygen_sensing.csv")
+)
+
+
+
+sl.dt <- export.dt[
+    acute.oxygen.genes.dt[
+        gene_id != "",
+        list(
+            gene_id = str_split_fixed(gene_id, "\\.", n = 2)[, 1],
+            Pathway, Reference                                
+        )]
+]
+
+fwrite(sl.dt, file.path(s3.dir, "acute_oxygen_genes.csv"))
+
+```
+
+
+## Differentially expression
+
+```{r de_by_class, fig.width = 14}
+
+collapsed2long <- function(collapsed.dt, col2expand, expanded.col, delimiter){
+    
+    collapsed.dt <- copy(collapsed.dt)
+    collapsed.dt <- collapsed.dt[
+        get(col2expand) != "" & !is.na(get(col2expand))
+    ]
+    collapsed.dt[, ref_col := 1:.N]
+    collapsed.dt[, tmp_vec := str_split(get(col2expand), delimiter)]
+    collapsed.dt[
+      , group_n := length(tmp_vec[[1]]),
+        by = seq_len(nrow(collapsed.dt))
+    ]
+    long.dt <- collapsed.dt[rep(1:.N, group_n)]
+    long.dt[, group_idx := rowid(ref_col)]
+    long.dt[
+      , (expanded.col) := tmp_vec[[1]][group_idx],
+        by = seq_len(nrow(long.dt))
+    ]
+    long.dt[
+      , c("tmp_vec", "group_idx", "group_n", "ref_col", col2expand) := NULL
+    ]
+    return(long.dt)
+}
+
+
+
+res.by.class.long.dt <- collapsed2long(
+    res.by.class.dt[
+        tissue_vs_AM_PHD2KO_comparison_flag == TRUE
+    ],
+    col2expand = "gene_group",
+    expanded.col = "gene_group_expanded",
+    delimiter = ", "
+)
+
+ggplot(
+    res.by.class.long.dt[!is.na(gene_group_expanded)][order(!is.na(concordant_regulation))],
+    aes(
+        x = capped_log2fc__Tissue,
+        y = capped_log2fc__AM_PHD2KO,
+        color = concordant_regulation
+    )
+) +
+    geom_hline(yintercept = 0, color = "gray60") +
+    geom_vline(xintercept = 0, color = "gray60") +
+    geom_point() +
+    scale_color_manual(
+        values = c(
+            "CB specific and Phd2KO induced in AM" = "#2166AC",
+            "AM specific and Phd2KO repressed in AM" = "#D6604D"
+        )) +
+    ggrepel::geom_label_repel(
+                 aes(
+                     label = ifelse(
+                         !is.na(concordant_regulation), gene_name, NA
+                         )
+                 ),
+                 max.overlaps = 1000
+             ) +
+    facet_grid(~ gene_group_expanded) +
+    theme(
+        aspect.ratio = 1,
+        legend.position = "bottom"
+    ) +
+    xlab("mRNA log2 FC (CB vs AM)") +
+    ylab("mRNA log2 FC (Phd2 KO in AM)")
+
+
+```
+
+
+
+# Session information
+
+```{r session info}
+
+sessioninfo::session_info()
+
+```

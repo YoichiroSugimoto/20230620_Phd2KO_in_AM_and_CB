@@ -1,0 +1,460 @@
+---
+title: "s3-1 Concordance of CB vs PHD2KOed's AM gene expression"
+author: "Yoichiro Sugimoto"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+vignette: >
+  %\VignetteIndexEntry{Bioconductor style for PDF documents}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+output:
+   html_document:
+     highlight: haddock
+     toc: yes
+     toc_depth: 2
+     keep_md: yes
+     fig_width: 5
+     fig_height: 5
+---
+
+# Overview
+
+
+
+# Setup
+
+
+```{r load packages, message = FALSE, warning = FALSE}
+
+project.dir <- "/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB"
+renv::restore("/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB/R")
+
+processors <- 7
+
+temp <- sapply(list.files(
+    file.path(project.dir, "R/functions"),
+    full.names = TRUE
+), source)
+
+set.seed(1)
+
+```
+
+## The input and output files and the directories
+
+```{r setup directories}
+
+annot.dir <- file.path(project.dir, "annotation/")
+annot.ps.dir <- file.path(annot.dir, "mm39_annotation/processed_data/")
+
+results.dir <- file.path(project.dir, "results")
+s2.dir <- file.path(results.dir, "s2")
+s3.dir <- file.path(results.dir, "s3")
+
+create.dirs(c(
+    s3.dir
+))
+
+```
+
+# Import data
+
+```{r download gtf files}
+
+res.summary.dt <- fread(file.path(s2.dir, "all-de-results.csv"))
+
+color.code <- c(
+    "CB specific" = "#EE6677",
+    "Others" = "gray80",
+    "AM specific" = "#4477AA"
+)
+
+color.code.2 <- c(
+    "PHD2KO_induced" = "#228833",
+    "Others" = "gray80",
+    "PHD2KO_repressed" = "#AA3377"
+)
+
+res.summary.dt[, `:=`(
+    tissue_specific_genes = factor(tissue_specific_genes, levels = names(color.code)),
+    tissue_specific_genes_Chang = factor(tissue_specific_genes_Chang, levels = names(color.code)),
+    PHD2_regulated_in_AM = factor(PHD2_regulated_in_AM, levels = names(color.code.2)),
+    PHD2_regulated_in_CB = factor(PHD2_regulated_in_CB, levels = names(color.code.2))
+)]
+
+```
+
+
+
+# Visualization of differentially expressed genes
+
+## MA plots
+
+```{r de}
+
+library("matrixStats")
+
+plotMA <- function(res.summary.dt, data.postfix = "Tissue", data.vals = c("AM", "CB"), color.col, color.code, plot.title, log2fc_cap = 5){
+
+    sl.dt <- copy(res.summary.dt)
+    sl.dt[, `:=`(
+        ave_TPM = rowMeans(cbind(
+            get(paste0("TPM_", data.vals[1], "__", data.postfix)),
+            get(paste0("TPM_", data.vals[2], "__", data.postfix))
+        )),
+        ave_log2fc = get(paste0("log2fc__", data.postfix))
+    )]
+
+    sl.dt[, `:=`(
+        capped_log2fc = case_when(
+            ave_log2fc > log2fc_cap ~ log2fc_cap,
+            ave_log2fc < -log2fc_cap ~ -log2fc_cap,
+            TRUE ~ ave_log2fc 
+        ),
+        capped_shape = case_when(
+            abs(ave_log2fc) > log2fc_cap ~ 18,
+            TRUE ~ 16
+        )
+    )]
+
+    g1 <- ggplot(
+        data = sl.dt[order(get(color.col) != "Others")],
+        aes(
+            x = ave_TPM,
+            y = capped_log2fc,
+            shape = as.character(capped_shape),
+            color = get(color.col)
+        )
+    ) +
+
+    geom_hline(yintercept = 0, color = "gray60") +
+        geom_point() +
+        scale_x_log10(
+            breaks = scales::trans_breaks("log10", function(x) 10^x),
+            labels = scales::trans_format("log10", scales::math_format(10^.x))
+        ) +
+        coord_cartesian(ylim = c(-log2fc_cap - 0.1, log2fc_cap + 0.1), xlim = c(1, 20000)) +
+        scale_color_manual(values = color.code) +
+        scale_shape_manual(values = c("16" = 16, "18" = 18), guide = "none") +
+        theme(
+            legend.position = "bottom",
+            legend.title=element_blank(),
+            aspect.ratio = 1
+        ) +    
+        xlab("Average mRNA abundance [TPM]") +
+        ylab("log2fc in mRNA abudance") +
+        ggtitle(plot.title)
+
+    return(list(g = g1, sl.dt = sl.dt))
+
+}
+
+
+```
+
+# Phd2 KO in CB and AM
+
+
+```{r phd2ko_in_CB}
+
+g.phd <- res.summary.dt[
+    (TPM_WT__CB_PHD2KO > 10 | TPM_PHD2KO__CB_PHD2KO > 10 |
+    TPM_WT__AM_PHD2KO > 10 | TPM_PHD2KO__AM_PHD2KO > 10) &
+    !is.na(padj__CB_PHD2KO) & !is.na(padj__AM_PHD2KO)
+] %T>%
+    {print(paste0("n = ", nrow(.)))} %>%
+    ggplot(
+        aes(
+            x = log2fc__CB_PHD2KO,
+            y = log2fc__AM_PHD2KO
+        )
+    ) +
+    geom_hline(yintercept = 0, color = "gray60") +
+    geom_vline(xintercept = 0, color = "gray60") +
+    geom_point() +
+    coord_cartesian(xlim = c(-10, 10), ylim = c(-10, 10)) +
+    theme(
+        aspect.ratio = 1
+    ) +
+    xlab("log2 FC by Phd2 KO in CB") +
+    ylab("log2 FC by Phd2 KO in AM")
+
+print(g.phd)
+
+g.phd + ggrepel::geom_label_repel(aes(label = ifelse(
+                                          log2fc__CB_PHD2KO > 1 &
+                                          log2fc__AM_PHD2KO > 1,
+                                          gene_name, NA
+                                      )), max.overlaps = 1000)
+
+
+corN <- function(min.tpm.threshold, res.summary.dt){
+    temp.dt <- res.summary.dt[
+    (TPM_WT__CB_PHD2KO > min.tpm.threshold | TPM_PHD2KO__CB_PHD2KO > min.tpm.threshold |
+    TPM_WT__AM_PHD2KO > min.tpm.threshold | TPM_PHD2KO__AM_PHD2KO > min.tpm.threshold) &
+    !is.na(padj__CB_PHD2KO) & !is.na(padj__AM_PHD2KO)
+    ]
+
+    dt <- temp.dt %$%
+        data.table(
+            tpm_threshold = min.tpm.threshold,
+            slope = lm(log2fc__AM_PHD2KO ~ log2fc__CB_PHD2KO) %>%
+                coef %>% {.[2]},
+            coef = lm(log2fc__AM_PHD2KO ~ log2fc__CB_PHD2KO) %>%
+                coef %>% {.[1]},
+            pearson_r = cor(
+                log2fc__CB_PHD2KO, log2fc__AM_PHD2KO, method = "pearson"
+            ),
+            spearman_r = cor(
+                log2fc__CB_PHD2KO, log2fc__AM_PHD2KO, method = "spearman"
+            ),
+            kendall_r = cor(
+                log2fc__CB_PHD2KO, log2fc__AM_PHD2KO, method = "kendall"
+            ),
+            n = nrow(.)
+        )
+    
+    return(dt)
+}
+
+cor.n.dt <- lapply(
+    1:1000,
+    corN,
+    res.summary.dt = res.summary.dt
+) %>%
+    rbindlist
+
+melt(
+    cor.n.dt,
+    measure.vars = c("pearson_r", "spearman_r", "kendall_r"),
+    id.vars = "tpm_threshold",
+    value.name = "correlation_coefficiet",
+    variable.name = "method"
+) %>%
+    ggplot(
+        aes(
+            x = tpm_threshold,
+            y = correlation_coefficiet,
+            color = method
+        )
+    ) +
+    geom_point() +
+    khroma::scale_color_bright() +
+    coord_cartesian(ylim = c(0, 1))
+
+cor.n.dt[tpm_threshold %in% c(10, 100)]
+
+g1.zoom <- ggplot(
+    data = res.summary.dt[
+    (TPM_WT__CB_PHD2KO > 100 | TPM_PHD2KO__CB_PHD2KO > 100 |
+     TPM_WT__AM_PHD2KO > 100 | TPM_PHD2KO__AM_PHD2KO > 100) &
+        !is.na(padj__CB_PHD2KO) & !is.na(padj__AM_PHD2KO)
+    ],
+    aes(
+        x = log2fc__CB_PHD2KO,
+        y = log2fc__AM_PHD2KO
+    )
+) +
+    geom_hline(yintercept = 0, color = "gray60") +
+    geom_vline(xintercept = 0, color = "gray60") +
+    geom_point() +
+    theme(
+        aspect.ratio = 1
+    ) +
+    xlab("log2 FC by Phd2 KO in CB") +
+    ylab("log2 FC by Phd2 KO in AM")
+
+g1.zoom +
+    coord_cartesian(xlim = c(-2, 2), ylim = c(-2, 2))
+
+g1.zoom +
+    coord_cartesian(xlim = c(-10, 10), ylim = c(-10, 10))
+
+
+
+```
+
+
+
+# Analysis of the concordance of regulation
+
+## Phd2 regulated genes in AM
+
+
+```{r concordance, fig.width = 7.5, fig.height = 6.5}
+
+log2fc.cap <- 5
+
+p.res.1 <- plotMA(
+    res.summary.dt[
+        !is.na(padj__Tissue) &
+        !is.na(padj__AM_PHD2KO)
+    ],
+    data.postfix = "Tissue",
+    data.vals = c("CB", "AM"),
+    color.col = "PHD2_regulated_in_AM",
+    color.code = color.code.2,
+    plot.title = "CB vs AM\nPhd2 regulated genes in AM highlighted",
+    log2fc_cap = log2fc.cap
+)
+
+
+p.res.1$sl.dt[order(padj__AM_PHD2KO, decreasing = TRUE)] %>%
+    ggplot(
+        aes(
+            x = TPM_AM__Tissue,
+            y = capped_log2fc,
+            color = PHD2_regulated_in_AM
+        )
+    ) +
+    geom_point() +
+    geom_hline(yintercept = 0, color = "gray60") +
+    ggrepel::geom_label_repel(aes(
+                 label = ifelse(
+                     tissue_specific_genes != "Others" &
+                     PHD2_regulated_in_AM != "Others" &
+                     sign(log2fc__Tissue) == sign(log2fc__AM_PHD2KO) &
+                     gene_type == "protein_coding" &
+                     (TPM_PHD2KO__AM_PHD2KO > 10 | TPM_WT__AM_PHD2KO > 10),
+                     gene_name, NA                                                              
+                 )
+             ),
+             max.overlaps = Inf, size = 5,
+             xlim = c(NA, Inf), ylim = c(-NA, Inf),
+             fontface = "italic"
+             ) +
+    scale_color_manual(values = color.code.2) +
+    scale_x_log10(
+        breaks = scales::trans_breaks("log10", function(x) 10^x)
+    ) +
+    coord_cartesian(xlim = c(1, 3000)) +
+    theme(
+        aspect.ratio = 0.8,
+        legend.position = "bottom"
+    )
+
+
+ggplot(
+    data = p.res.1$sl.dt,
+    aes(
+        x = PHD2_regulated_in_AM,
+        y = ave_log2fc,
+        fill = PHD2_regulated_in_AM
+    )
+) +
+    geom_hline(yintercept = 0, color = "gray60") +
+    geom_boxplot(alpha = 1, outlier.shape = NA) +
+    coord_cartesian(ylim = c(-log2fc.cap, log2fc.cap)) +
+    scale_fill_manual(values = color.code.2, guide = "none") +
+    scale_x_discrete(guide = guide_axis(angle = 90)) +
+    theme(
+        aspect.ratio = 2.5
+    ) +
+    ylab("mRNA log2 FC (CB vs AM)")
+
+p.res.1$sl.dt[!is.na(ave_log2fc), table(PHD2_regulated_in_AM)]
+
+pval.tbl <- p.res.1$sl.dt %$%
+    pairwise.wilcox.test(
+        x = ave_log2fc,
+        g = PHD2_regulated_in_AM,
+        p.adjust.method = "none"
+    )$p.value
+
+p.adjust(c(
+    pval.tbl["Others", "PHD2KO_induced"], pval.tbl["PHD2KO_repressed", "Others"]
+))
+
+```
+
+# Confirmation of the results using orthogonal data
+
+
+```{r chang_data}
+
+ggplot(
+    data = res.summary.dt[
+        !is.na(padj__Tissue) & !is.na(padj__Tissue_Chang)
+    ],
+    aes(
+        x = log2fc__Tissue,
+        y = log2fc__Tissue_Chang
+    )
+) +
+    geom_point(alpha = 0.2, shape = 16) +
+    theme(
+        aspect.ratio = 1
+    ) +
+    coord_cartesian(xlim = c(-5, 5), ylim = c(-5, 5)) +
+    xlab("mRNA log2 FC (CB vs AM)") +
+    ylab("mRNA log2 FC (CB vs AM) by Chang et al.")
+
+res.summary.dt[
+    !is.na(padj__Tissue) & !is.na(padj__Tissue_Chang)
+] %$%
+    cor.test(
+        x = log2fc__Tissue, y = log2fc__Tissue_Chang,
+        method = "pearson"
+    )
+
+res.summary.dt[
+    !is.na(padj__Tissue) & !is.na(padj__Tissue_Chang)
+] %$%
+    cor.test(
+        x = log2fc__Tissue, y = log2fc__Tissue_Chang,
+        method = "spearman"
+    )
+
+p.res.2 <- plotMA(
+    res.summary.dt[
+        !is.na(padj__Tissue_Chang) & !is.na(padj__AM_PHD2KO)
+    ],
+    data.postfix = "Tissue_Chang",
+    data.vals = c("CB", "AM"),
+    color.col = "PHD2_regulated_in_AM",
+    color.code = color.code.2,
+    plot.title = "CB vs AM (Chang et al.)\nPhd2 regulated genes in AM highlighted",
+    log2fc_cap = log2fc.cap
+)
+
+ggplot(
+    data = p.res.2$sl.dt,
+    aes(
+        x = PHD2_regulated_in_AM,
+        y = ave_log2fc,
+        fill = PHD2_regulated_in_AM
+    )
+) +
+    geom_hline(yintercept = 0, color = "gray60") +
+    geom_boxplot(alpha = 1, outlier.shape = NA) +
+    coord_cartesian(ylim = c(-log2fc.cap, log2fc.cap)) +
+    scale_fill_manual(values = color.code.2, guide = "none") +
+    scale_x_discrete(guide = guide_axis(angle = 90)) +
+    theme(
+        aspect.ratio = 2.5
+    ) +
+    ylab("mRNA log2 FC (CB vs AM)\n(Chang et al. data)")
+
+p.res.2$sl.dt[!is.na(ave_log2fc), table(PHD2_regulated_in_AM)]
+
+pval2.tbl <- p.res.2$sl.dt %$%
+    pairwise.wilcox.test(
+        x = ave_log2fc,
+        g = PHD2_regulated_in_AM,
+        p.adjust.method = "none"
+    )$p.value
+
+p.adjust(c(
+    pval2.tbl["Others", "PHD2KO_induced"], pval2.tbl["PHD2KO_repressed", "Others"]
+))
+
+
+```
+
+
+# Session information
+
+```{r session info}
+
+sessioninfo::session_info()
+
+```

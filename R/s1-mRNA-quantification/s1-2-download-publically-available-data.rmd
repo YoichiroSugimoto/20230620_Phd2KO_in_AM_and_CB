@@ -1,0 +1,99 @@
+---
+title: "s1-2 Download publicly available data"
+author: "Yoichiro Sugimoto"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+vignette: >
+  %\VignetteIndexEntry{Bioconductor style for PDF documents}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+output:
+   html_document:
+     highlight: haddock
+     toc: yes
+     toc_depth: 2
+     keep_md: yes
+     fig_width: 5
+     fig_height: 5
+---
+
+# Overview
+
+The abundance of mRNA will be quantified by `Salmon`.
+
+
+# Setup
+
+
+```{r load packages, message = FALSE, warning = FALSE}
+
+project.dir <- "/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB"
+
+renv::restore("/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB/R")
+
+processors <- 7
+
+temp <- sapply(list.files(
+    file.path(project.dir, "R/functions"),
+    full.names = TRUE
+), source)
+
+
+```
+
+## Set directories
+
+```{r setup directories}
+
+results.dir <- file.path(project.dir, "results")
+s0.dir <- file.path(results.dir, "s0-public-data")
+
+create.dirs(c(
+    results.dir,
+    s0.dir
+))
+
+
+```
+
+# Download public data
+
+
+```{r download gtf files}
+
+public.sample.dt <- file.path(
+    project.dir, "data/sample_data/public_data_source.csv"
+) %>% fread
+
+importFq <- function(idx, sample.dt){ 
+    srr.id <- sample.dt[idx, srr_id]
+    exp.name <- sample.dt[idx, sample_name]
+    
+    sra.cmd <- paste(
+        "/fast/AG_Sugimoto/home/users/yoichiro/software/from_source/sratoolkit.3.0.0-centos_linux64/bin/fasterq-dump",
+        "-o", file.path(normalizePath(s0.dir), paste0(exp.name, ".fastq")),
+        "-f",
+        "-t", file.path(normalizePath(s0.dir), "temp"),
+        "-e", processors,
+        srr.id
+    )
+    
+    system(sra.cmd)
+    return()
+}
+
+lapply(
+    1:nrow(public.sample.dt),
+    importFq,
+    sample.dt = public.sample.dt
+)
+
+
+```
+
+# Session information
+
+```{r session info}
+
+sessioninfo::session_info()
+
+```

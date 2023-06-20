@@ -1,0 +1,118 @@
+---
+title: "s2-2 Generation of master table"
+author: "Yoichiro Sugimoto"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+vignette: >
+  %\VignetteIndexEntry{Bioconductor style for PDF documents}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+output:
+   html_document:
+     highlight: haddock
+     toc: yes
+     toc_depth: 2
+     keep_md: yes
+     fig_width: 5
+     fig_height: 5
+---
+
+# Overview
+
+
+
+# Setup
+
+
+```{r load packages, message = FALSE, warning = FALSE}
+
+project.dir <- "/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB"
+
+renv::restore("/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB/R")
+
+processors <- 7
+
+temp <- sapply(list.files(
+    file.path(project.dir, "R/functions"),
+    full.names = TRUE
+), source)
+
+
+```
+
+## The input and output files and the directories
+
+```{r setup directories}
+
+annot.dir <- file.path(project.dir, "annotation/")
+annot.ps.dir <- file.path(annot.dir, "mm39_annotation/processed_data/")
+
+results.dir <- file.path(project.dir, "results")
+s2.dir <- file.path(results.dir, "s2")
+
+create.dirs(c(
+))
+
+```
+
+# Import data
+
+```{r download gtf files}
+
+res.summary.dt <- file.path(s2.dir, "de-summary-consolidated.csv") %>% fread
+res.summary.dt[, gene_id := str_split_fixed(gene_id, "\\.", n = 2)[, 1]]
+
+
+```
+
+# Definition of differentially expressed genes
+
+
+```{r definition_of_differentially_expressed_genes}
+
+min.exp.th <- 0
+log2fc.th <- log2(1.5)
+
+res.summary.dt[, `:=`(
+    tissue_specific_genes = case_when(
+        padj__Tissue < 0.1 & log2fc__Tissue > log2fc.th &
+        TPM_CB__Tissue > min.exp.th ~ "CB specific",
+        padj__Tissue < 0.1 & log2fc__Tissue < -log2fc.th &
+        TPM_AM__Tissue > min.exp.th ~ "AM specific",
+        TRUE ~ "Others"
+    ) %>% factor(levels = c("CB specific", "Others", "AM specific")),
+    tissue_specific_genes_Chang = case_when(
+        padj__Tissue_Chang < 0.1 & log2fc__Tissue_Chang > log2fc.th &
+        TPM_CB__Tissue_Chang > min.exp.th ~ "CB specific",
+        padj__Tissue_Chang < 0.1 & log2fc__Tissue_Chang < -log2fc.th &
+        TPM_AM__Tissue_Chang > min.exp.th ~ "AM specific",
+        TRUE ~ "Others"
+    ) %>% factor(levels = c("CB specific", "Others", "AM specific")),
+    PHD2_regulated_in_CB = case_when(
+        padj__CB_PHD2KO < 0.1 & log2fc__CB_PHD2KO > log2fc.th &
+        TPM_PHD2KO__CB_PHD2KO > min.exp.th ~ "PHD2KO_induced",
+        padj__CB_PHD2KO < 0.1 & log2fc__CB_PHD2KO < -log2fc.th &
+        TPM_WT__CB_PHD2KO > min.exp.th ~ "PHD2KO_repressed",
+        TRUE ~ "Others"
+    ) %>% factor(levels = c("PHD2KO_induced", "Others", "PHD2KO_repressed")),
+    PHD2_regulated_in_AM = case_when(
+        padj__AM_PHD2KO < 0.1 & log2fc__AM_PHD2KO > log2fc.th &
+        TPM_PHD2KO__AM_PHD2KO > min.exp.th ~ "PHD2KO_induced",
+        padj__AM_PHD2KO < 0.1 & log2fc__AM_PHD2KO < -log2fc.th &
+        TPM_WT__AM_PHD2KO > min.exp.th ~ "PHD2KO_repressed",
+        TRUE ~ "Others"
+    ) %>% factor(levels = c("PHD2KO_induced", "Others", "PHD2KO_repressed"))
+)]
+
+fwrite(res.summary.dt, file = file.path(s2.dir, "all-de-results.csv"))
+
+```
+
+
+
+# Session information
+
+```{r session info}
+
+sessioninfo::session_info()
+
+```
