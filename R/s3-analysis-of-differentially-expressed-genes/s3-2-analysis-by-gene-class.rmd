@@ -99,6 +99,7 @@ go.dt[, `:=`(
         GO %in% c(
                     "GO:0005267"
                 ) ~ "potassium channel"
+    )
 )]
 
 go.dt <- go.dt[!duplicated(paste(gene_id, gene_group))]
@@ -173,7 +174,7 @@ sl.dt <- export.dt[
         gene_id != "",
         list(
             gene_id = str_split_fixed(gene_id, "\\.", n = 2)[, 1],
-            Pathway, Reference                                
+            Pathway                                
         )]
 ]
 

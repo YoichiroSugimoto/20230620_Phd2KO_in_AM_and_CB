@@ -213,13 +213,16 @@ res.summary.dt[
 ) &
 !is.na(padj__CB_PHD2KO) & !is.na(padj__AM_PHD2KO)
 ]     %$%
-    cor(
-        log2fc__CB_PHD2KO, log2fc__AM_PHD2KO, method = "spearman"
+    round(
+        cor(
+            log2fc__CB_PHD2KO, log2fc__AM_PHD2KO, method = "spearman"
+        ),
+        digits = 1
     )
 ```
 
 ```
-## [1] 0.0515956
+## [1] 0.1
 ```
 
 
