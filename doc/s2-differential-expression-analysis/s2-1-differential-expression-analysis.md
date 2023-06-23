@@ -484,7 +484,7 @@ rd.dds.am <- DESeq(
 
 ```r
 res.rd.am.dt <- results(rd.dds.am) %T>%
-    plotMA(ylim = c(-2,2), main = "AM Phd2 KO (SMART-Seq only)") %>%
+    plotMA(ylim = c(-2,2), main = "AM Phd2 KO") %>%
     as.data.frame %>%
     data.table(keep.rownames = "gene_id") %>%
     {.[, .(gene_id, log2FoldChange, padj)]}
@@ -500,7 +500,7 @@ res.shrfc.rd.am.dt <- lfcShrink(
     coef = "Phd2_PHD2KO_vs_WT",
     type = "apeglm"
 ) %T>%
-    plotMA(ylim = c(-2,2), main = "AM Phd2 KO (shrunk), SMART-Seq only") %>%
+    plotMA(ylim = c(-2,2), main = "AM Phd2 KO (shrunk)") %>%
     as.data.frame %>%
 data.table(keep.rownames = "gene_id")
 ```
