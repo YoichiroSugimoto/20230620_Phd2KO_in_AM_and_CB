@@ -1,7 +1,7 @@
 ---
 title: "s3-1 Concordance of differentially expressed genes in the comparison of CB vs AM and that of Phd2KO vs wild-type AM"
 author: "Yoichiro Sugimoto"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
+date: "23 June, 2023"
 vignette: >
   %\VignetteIndexEntry{Bioconductor style for PDF documents}
   %\VignetteEngine{knitr::rmarkdown}
@@ -23,11 +23,17 @@ Genes differentially expressed in the comparison of CB vs AM and that of Phd2KO 
 # Setup
 
 
-```{r load_packages, message = FALSE, warning = FALSE}
 
+```r
 project.dir <- "/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB"
 renv::restore("/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB/R")
+```
 
+```
+## * The library is already synchronized with the lockfile.
+```
+
+```r
 processors <- 7
 
 temp <- sapply(list.files(
@@ -36,13 +42,12 @@ temp <- sapply(list.files(
 ), source)
 
 set.seed(1)
-
 ```
 
 ## The input and output files and the directories
 
-```{r setup_directories}
 
+```r
 annot.dir <- file.path(project.dir, "annotation/")
 annot.ps.dir <- file.path(annot.dir, "mm39_annotation/processed_data/")
 
@@ -53,13 +58,12 @@ s3.dir <- file.path(results.dir, "s3")
 create.dirs(c(
     s3.dir
 ))
-
 ```
 
 # Import data
 
-```{r import_master_table}
 
+```r
 res.summary.dt <- fread(file.path(s2.dir, "all-de-results.csv"))
 
 color.code <- c(
@@ -80,17 +84,29 @@ res.summary.dt[, `:=`(
     PHD2_regulated_in_AM = factor(PHD2_regulated_in_AM, levels = names(color.code.2)),
     PHD2_regulated_in_CB = factor(PHD2_regulated_in_CB, levels = names(color.code.2))
 )]
-
 ```
 
 
 
 # Definition of function
 
-```{r def_func}
 
+```r
 library("matrixStats")
+```
 
+```
+## 
+## Attaching package: 'matrixStats'
+```
+
+```
+## The following object is masked from 'package:dplyr':
+## 
+##     count
+```
+
+```r
 plotMA <- function(res.summary.dt, data.postfix = "Tissue", data.vals = c("AM", "CB"), color.col, color.code, plot.title, log2fc_cap = 5){
 
     sl.dt <- copy(res.summary.dt)
@@ -145,15 +161,13 @@ plotMA <- function(res.summary.dt, data.postfix = "Tissue", data.vals = c("AM", 
     return(list(g = g1, sl.dt = sl.dt))
 
 }
-
-
 ```
 
 # Comparison of the effect of Phd2 KO in the CB and AM
 
 
-```{r phd2ko_in_CB}
 
+```r
 g.phd <- res.summary.dt[
     (TPM_WT__CB_PHD2KO > 10 | TPM_PHD2KO__CB_PHD2KO > 10 |
     TPM_WT__AM_PHD2KO > 10 | TPM_PHD2KO__AM_PHD2KO > 10) &
@@ -175,9 +189,19 @@ g.phd <- res.summary.dt[
     ) +
     xlab("log2 FC by Phd2 KO in CB") +
     ylab("log2 FC by Phd2 KO in AM")
+```
 
+```
+## [1] "n = 9851"
+```
+
+```r
 print(g.phd)
+```
 
+![](s3-1-CB-vs-PHD2KO-in-AM_files/figure-html/phd2ko_in_CB-1.png)<!-- -->
+
+```r
 min.tpm.threshold <- 10
 
 res.summary.dt[
@@ -192,16 +216,18 @@ res.summary.dt[
     cor(
         log2fc__CB_PHD2KO, log2fc__AM_PHD2KO, method = "spearman"
     )
+```
 
-
+```
+## [1] 0.0515956
 ```
 
 
 # Analysis of the concordance of differentially expressed genes in the comparison of CB vs AM and that of Phd2KO vs wild-type AM
 
 
-```{r concordance, fig.width = 7.5, fig.height = 6.5}
 
+```r
 log2fc.cap <- 5
 
 p.res.1 <- plotMA(
@@ -251,8 +277,20 @@ p.res.1$sl.dt[order(padj__AM_PHD2KO, decreasing = TRUE)] %>%
         aspect.ratio = 0.8,
         legend.position = "bottom"
     )
+```
 
+```
+## Warning: Transformation introduced infinite values in continuous x-axis
+## Transformation introduced infinite values in continuous x-axis
+```
 
+```
+## Warning: Removed 15137 rows containing missing values (geom_label_repel).
+```
+
+![](s3-1-CB-vs-PHD2KO-in-AM_files/figure-html/concordance-1.png)<!-- -->
+
+```r
 ggplot(
     data = p.res.1$sl.dt,
     aes(
@@ -270,9 +308,21 @@ ggplot(
         aspect.ratio = 2.5
     ) +
     ylab("mRNA log2 FC (CB vs AM)")
+```
 
+![](s3-1-CB-vs-PHD2KO-in-AM_files/figure-html/concordance-2.png)<!-- -->
+
+```r
 p.res.1$sl.dt[!is.na(ave_log2fc), table(PHD2_regulated_in_AM)]
+```
 
+```
+## PHD2_regulated_in_AM
+##   PHD2KO_induced           Others PHD2KO_repressed 
+##              108            15032               75
+```
+
+```r
 pval.tbl <- p.res.1$sl.dt %$%
     pairwise.wilcox.test(
         x = ave_log2fc,
@@ -283,14 +333,17 @@ pval.tbl <- p.res.1$sl.dt %$%
 p.adjust(c(
     pval.tbl["Others", "PHD2KO_induced"], pval.tbl["PHD2KO_repressed", "Others"]
 ))
+```
 
+```
+## [1] 1.189947e-23 2.740920e-17
 ```
 
 # Confirmation of the results above using orthogonal data
 
 
-```{r chang_data}
 
+```r
 ggplot(
     data = res.summary.dt[
         !is.na(padj__Tissue) & !is.na(padj__Tissue_Chang)
@@ -307,7 +360,11 @@ ggplot(
     coord_cartesian(xlim = c(-5, 5), ylim = c(-5, 5)) +
     xlab("mRNA log2 FC (CB vs AM)") +
     ylab("mRNA log2 FC (CB vs AM) by Chang et al.")
+```
 
+![](s3-1-CB-vs-PHD2KO-in-AM_files/figure-html/chang_data-1.png)<!-- -->
+
+```r
 res.summary.dt[
     !is.na(padj__Tissue) & !is.na(padj__Tissue_Chang)
 ] %$%
@@ -315,7 +372,23 @@ res.summary.dt[
         x = log2fc__Tissue, y = log2fc__Tissue_Chang,
         method = "pearson"
     )
+```
 
+```
+## 
+## 	Pearson's product-moment correlation
+## 
+## data:  log2fc__Tissue and log2fc__Tissue_Chang
+## t = 105.04, df = 16234, p-value < 2.2e-16
+## alternative hypothesis: true correlation is not equal to 0
+## 95 percent confidence interval:
+##  0.6268631 0.6451806
+## sample estimates:
+##       cor 
+## 0.6361115
+```
+
+```r
 res.summary.dt[
     !is.na(padj__Tissue) & !is.na(padj__Tissue_Chang)
 ] %$%
@@ -323,7 +396,26 @@ res.summary.dt[
         x = log2fc__Tissue, y = log2fc__Tissue_Chang,
         method = "spearman"
     )
+```
 
+```
+## Warning in cor.test.default(x = log2fc__Tissue, y = log2fc__Tissue_Chang, :
+## Cannot compute exact p-value with ties
+```
+
+```
+## 
+## 	Spearman's rank correlation rho
+## 
+## data:  log2fc__Tissue and log2fc__Tissue_Chang
+## S = 2.7083e+11, p-value < 2.2e-16
+## alternative hypothesis: true rho is not equal to 0
+## sample estimates:
+##       rho 
+## 0.6203308
+```
+
+```r
 p.res.2 <- plotMA(
     res.summary.dt[
         !is.na(padj__Tissue_Chang) & !is.na(padj__AM_PHD2KO)
@@ -353,9 +445,21 @@ ggplot(
         aspect.ratio = 2.5
     ) +
     ylab("mRNA log2 FC (CB vs AM)\n(Chang et al. data)")
+```
 
+![](s3-1-CB-vs-PHD2KO-in-AM_files/figure-html/chang_data-2.png)<!-- -->
+
+```r
 p.res.2$sl.dt[!is.na(ave_log2fc), table(PHD2_regulated_in_AM)]
+```
 
+```
+## PHD2_regulated_in_AM
+##   PHD2KO_induced           Others PHD2KO_repressed 
+##              114            15315               80
+```
+
+```r
 pval2.tbl <- p.res.2$sl.dt %$%
     pairwise.wilcox.test(
         x = ave_log2fc,
@@ -366,15 +470,85 @@ pval2.tbl <- p.res.2$sl.dt %$%
 p.adjust(c(
     pval2.tbl["Others", "PHD2KO_induced"], pval2.tbl["PHD2KO_repressed", "Others"]
 ))
+```
 
-
+```
+## [1] 9.308047e-17 7.395189e-15
 ```
 
 
 # Session information
 
-```{r session info}
 
+```r
 sessioninfo::session_info()
+```
 
+```
+## ─ Session info ───────────────────────────────────────────────────────────────
+##  setting  value
+##  version  R version 4.2.1 (2022-06-23)
+##  os       CentOS Linux 7 (Core)
+##  system   x86_64, linux-gnu
+##  ui       X11
+##  language (EN)
+##  collate  en_GB.UTF-8
+##  ctype    en_GB.UTF-8
+##  tz       Europe/Berlin
+##  date     2023-06-23
+##  pandoc   2.19.2 @ /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/bin/ (via rmarkdown)
+## 
+## ─ Packages ───────────────────────────────────────────────────────────────────
+##  package     * version date (UTC) lib source
+##  BiocManager   1.30.18 2022-05-18 [1] CRAN (R 4.2.1)
+##  bslib         0.4.0   2022-07-16 [1] CRAN (R 4.2.1)
+##  cachem        1.0.6   2021-08-19 [1] CRAN (R 4.2.1)
+##  cli           3.4.1   2022-09-23 [1] CRAN (R 4.2.1)
+##  colorspace    2.0-3   2022-02-21 [1] CRAN (R 4.2.1)
+##  data.table  * 1.14.4  2022-10-17 [1] CRAN (R 4.2.1)
+##  digest        0.6.30  2022-10-18 [1] CRAN (R 4.2.1)
+##  dplyr       * 1.0.10  2022-09-01 [1] CRAN (R 4.2.1)
+##  evaluate      0.17    2022-10-07 [1] CRAN (R 4.2.1)
+##  fansi         1.0.3   2022-03-24 [1] CRAN (R 4.2.1)
+##  farver        2.1.1   2022-07-06 [1] CRAN (R 4.2.1)
+##  fastmap       1.1.0   2021-01-25 [1] CRAN (R 4.2.1)
+##  generics      0.1.3   2022-07-05 [1] CRAN (R 4.2.1)
+##  ggplot2     * 3.3.6   2022-05-03 [1] CRAN (R 4.2.1)
+##  ggrepel       0.9.1   2021-01-15 [1] CRAN (R 4.2.1)
+##  glue          1.6.2   2022-02-24 [1] CRAN (R 4.2.1)
+##  gtable        0.3.1   2022-09-01 [1] CRAN (R 4.2.1)
+##  highr         0.9     2021-04-16 [1] CRAN (R 4.2.1)
+##  htmltools     0.5.3   2022-07-18 [1] CRAN (R 4.2.1)
+##  jquerylib     0.1.4   2021-04-26 [1] CRAN (R 4.2.1)
+##  jsonlite      1.8.2   2022-10-02 [1] CRAN (R 4.2.1)
+##  khroma      * 1.9.0   2022-06-18 [1] CRAN (R 4.2.1)
+##  knitr       * 1.40    2022-08-24 [1] CRAN (R 4.2.1)
+##  labeling      0.4.2   2020-10-20 [1] CRAN (R 4.2.1)
+##  lifecycle     1.0.3   2022-10-07 [1] CRAN (R 4.2.1)
+##  magrittr    * 2.0.3   2022-03-30 [1] CRAN (R 4.2.1)
+##  matrixStats * 0.62.0  2022-04-19 [1] CRAN (R 4.2.1)
+##  munsell       0.5.0   2018-06-12 [1] CRAN (R 4.2.1)
+##  pillar        1.8.1   2022-08-19 [1] CRAN (R 4.2.1)
+##  pkgconfig     2.0.3   2019-09-22 [1] CRAN (R 4.2.1)
+##  R6            2.5.1   2021-08-19 [1] CRAN (R 4.2.1)
+##  Rcpp          1.0.9   2022-07-08 [1] CRAN (R 4.2.1)
+##  renv          0.16.0  2022-09-29 [1] CRAN (R 4.2.1)
+##  rlang         1.0.6   2022-09-24 [1] CRAN (R 4.2.1)
+##  rmarkdown   * 2.17    2022-10-07 [1] CRAN (R 4.2.1)
+##  sass          0.4.2   2022-07-16 [1] CRAN (R 4.2.1)
+##  scales        1.2.1   2022-08-20 [1] CRAN (R 4.2.1)
+##  sessioninfo   1.2.2   2021-12-06 [1] CRAN (R 4.2.1)
+##  stringi       1.7.8   2022-07-11 [1] CRAN (R 4.2.1)
+##  stringr     * 1.4.1   2022-08-20 [1] CRAN (R 4.2.1)
+##  tibble        3.1.8   2022-07-22 [1] CRAN (R 4.2.1)
+##  tidyselect    1.2.0   2022-10-10 [1] CRAN (R 4.2.1)
+##  utf8          1.2.2   2021-07-24 [1] CRAN (R 4.2.1)
+##  vctrs         0.4.2   2022-09-29 [1] CRAN (R 4.2.1)
+##  withr         2.5.0   2022-03-03 [1] CRAN (R 4.2.1)
+##  xfun          0.34    2022-10-18 [1] CRAN (R 4.2.1)
+##  yaml          2.3.6   2022-10-18 [1] CRAN (R 4.2.1)
+## 
+##  [1] /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/lib/R/library
+## 
+## ──────────────────────────────────────────────────────────────────────────────
 ```

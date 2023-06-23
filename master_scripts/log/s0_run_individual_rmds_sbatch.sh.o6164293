@@ -1,0 +1,110 @@
+* The library is already synchronized with the lockfile.
+> args <- commandArgs(trailingOnly = TRUE)
+> 
+> library(rmarkdown)
+> rmarkdown::render(args[1])
+  |                                                                              |                                                                      |   0%  |                                                                              |.....                                                                 |   7%
+   inline R code fragments
+
+  |                                                                              |..........                                                            |  14%
+label: load_packages (with options) 
+List of 2
+ $ message: logi FALSE
+ $ warning: logi FALSE
+
+  |                                                                              |...............                                                       |  21%
+  ordinary text without R code
+
+  |                                                                              |....................                                                  |  29%
+label: setup directories
+  |                                                                              |.........................                                             |  36%
+  ordinary text without R code
+
+  |                                                                              |..............................                                        |  43%
+label: download gtf files
+  |                                                                              |...................................                                   |  50%
+  ordinary text without R code
+
+  |                                                                              |........................................                              |  57%
+label: get tx information
+  |                                                                              |.............................................                         |  64%
+  ordinary text without R code
+
+  |                                                                              |..................................................                    |  71%
+label: prep for salmon index
+  |                                                                              |.......................................................               |  79%
+  ordinary text without R code
+
+  |                                                                              |............................................................          |  86%
+label: export tx seqs
+  |                                                                              |.................................................................     |  93%
+  ordinary text without R code
+
+  |                                                                              |......................................................................| 100%
+label: session info
+
+/fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/bin/pandoc +RTS -K512m -RTS s0-1-preparation-of-Salmon-index.knit.md --to html4 --from markdown+autolink_bare_uris+tex_math_single_backslash --output s0-1-preparation-of-Salmon-index.html --lua-filter /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/lib/R/library/rmarkdown/rmarkdown/lua/pagebreak.lua --lua-filter /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/lib/R/library/rmarkdown/rmarkdown/lua/latex-div.lua --embed-resources --standalone --variable bs3=TRUE --section-divs --table-of-contents --toc-depth 2 --template /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/lib/R/library/rmarkdown/rmd/h/default.html --highlight-style haddock --variable theme=bootstrap --mathjax --variable 'mathjax-url=https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML' --include-in-header /tmp/6164293.1.all.q/RtmpZNFVP1/rmarkdown-str77eb28ba815a.html 
+> 
+> if(TRUE){
++     full.rmd.path <- normalizePath(args[1])
++ 
++     doc.dir <- file.path(
++         gsub("/R/", "/doc/", dirname(full.rmd.path))
++     )
++ 
++     create.dir <- function(dir.name){
++         if(dir.exists(dir.name) == FALSE) {
++             dir.create(dir.name, recursive = TRUE)
++         }
++     }
++ 
++     create.dir(doc.dir)
++ 
++     ## Move knitr output files to doc dir
++     non.rmd.files <- grep(
++         list.files(
++             dirname(full.rmd.path),
++             pattern = gsub(".rmd", "", basename(full.rmd.path)),
++             full.names = TRUE
++         ),
++         pattern = ".rmd$",
++         inv = TRUE,
++         value = TRUE
++     )
++ 
++     non.rmd.files <- basename(non.rmd.files[!file.info(non.rmd.files)$isdir])
++     
++     file.rename(
++         from = file.path(dirname(full.rmd.path), non.rmd.files),
++         to = file.path(doc.dir, non.rmd.files)
++     )
++ 
++     ## If figure directory exists
++     non.rmd.dir <- file.path(gsub(".rmd", "_files", basename(full.rmd.path)))
++ 
++     if(dir.exists(file.path(dirname(full.rmd.path), non.rmd.dir))){
++ 
++         file.mv.cmd <- paste(
++             "rsync", "--remove-source-files", "-r",
++             file.path(dirname(full.rmd.path), non.rmd.dir),
++             file.path(doc.dir)
++         )
++ 
++         system(file.mv.cmd)
++ 
++         empty.file.rm.cmd <- paste(
++             "find",
++             file.path(dirname(full.rmd.path), non.rmd.dir),
++             "-type", "d",
++             "-empty", "-delete"
++         )
++ 
++         system(empty.file.rm.cmd)
++         
++     } else {"No output dir"}
++     
++ } else {
++     "knitr output not moved"
++ }
+[1] "No output dir"
+> 

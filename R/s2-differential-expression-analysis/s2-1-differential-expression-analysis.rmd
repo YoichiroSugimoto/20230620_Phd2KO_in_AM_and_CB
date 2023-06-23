@@ -18,12 +18,13 @@ output:
 
 # Overview
 
+Analysis of differentially expressed genes will be performed using `DESeq2`.
 
 
 # Setup
 
 
-```{r load packages, message = FALSE, warning = FALSE}
+```{r load_packages, message = FALSE, warning = FALSE}
 
 project.dir <- "/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB"
 
@@ -45,7 +46,7 @@ temp <- sapply(list.files(
 
 ## The input and output files and the directories
 
-```{r setup directories}
+```{r setup_directories}
 
 annot.dir <- file.path(project.dir, "annotation/")
 annot.ps.dir <- file.path(annot.dir, "mm39_annotation/processed_data/")
@@ -62,7 +63,7 @@ create.dirs(c(
 
 # Import data
 
-```{r download gtf files}
+```{r import_data}
 
 sample.dt <- file.path(
     project.dir, "data/sample_data/20210401_sample_data.csv"
@@ -104,12 +105,12 @@ all.gene.dt <- all.tx.dt[!duplicated(gene_id)][
 
 ```
 
-# Differential expression analysis
+# Analysis of differential expressed genes
 
 ## DESeq2 object construction
 
 
-```{r deseq2 object}
+```{r construct_deseq2_object}
 
 createDESeq2Object <- function(sl.sample.dt, design.formula){
     tx.files <- file.path(
@@ -210,9 +211,9 @@ plotPCA(
 
 ```
 
-# Analysis of differential expression
 
-## Shared functions
+
+## Definition of a function
 
 
 ```{r shared_functions}
@@ -255,12 +256,13 @@ extractPerConditionBaseMean <- function(sl.sample.dt, sl.conditions = c("WT", "P
 
 ```
 
+## Analysis
 
-## CB PHD KO
+### CB Phd2 KO
 
 For this analysis, all CB samples will be analysed.
 
-```{r cb_phd_ko}
+```{r cb_phd2_ko}
 
 res.cb.count.dt <- extractPerConditionBaseMean(
     sl.sample.dt = sample.dt[tissue == "CB"]
@@ -316,7 +318,7 @@ setnames(
 
 ```
 
-# AM Phd2 KO
+### AM Phd2 KO
 
 
 ```{r AM_Phd2_KO}
@@ -375,11 +377,11 @@ setnames(
 ```
 
 
-# Tissue differences
+### Tissue differences
 
-Only analyse WT cells.
+Only wild-type data will be analysed.
 
-```{r tissue differences}
+```{r tissue_differences}
 
 res.tissue2.count.dt <- extractPerConditionBaseMean(
     sl.sample.dt = sample.dt[Phd2 == "WT"],
@@ -394,8 +396,8 @@ dds.tissue2 <- createDESeq2Object(
 
 dds.tissue2 <- DESeq(
     dds.tissue2,
-    test = "LRT", # Added on 20230611
-    reduced = ~ 1 # Added on 20230611
+    test = "LRT",
+    reduced = ~ 1 
 )
 
 res.tissue2.dt <- results(dds.tissue2) %T>%
@@ -438,12 +440,11 @@ setnames(
 
 ```
 
-# Public data
 
-## Chang et al.
+### Tissue differences using the data by Chang et al.
 
 
-```{r chang et al}
+```{r chang_et_al}
 
 dds.public <- createDESeq2Object(
     sl.sample.dt = public.sample.dt,
@@ -458,8 +459,8 @@ res.public.count.dt <- extractPerConditionBaseMean(
 
 dds.public <- DESeq(
     dds.public,
-    test = "LRT", # Added on 20230611
-    reduced = ~ 1 # Added on 20230611
+    test = "LRT",
+    reduced = ~ 1
 )
 
 public.res.dt <- results(dds.public) %>%
@@ -497,23 +498,16 @@ setnames(
 
 ```
 
-# Merge all data
+# Export the results
 
 
-```{r merga all data}
+```{r export_data}
 
 res.summary.dt <- Reduce(
     function(...) merge(..., all = TRUE, by = "gene_id"),
     list(all.gene.dt, res.cb.dt, res.rd.am.dt, res.tissue2.dt, public.res.dt)
 )
 
-```
-
-
-# Export the results of all analysis
-
-
-```{r plot the results of all analysis}
 
 fwrite(
     res.summary.dt,
@@ -525,7 +519,7 @@ fwrite(
 
 # Session information
 
-```{r session info}
+```{r session_info}
 
 sessioninfo::session_info()
 

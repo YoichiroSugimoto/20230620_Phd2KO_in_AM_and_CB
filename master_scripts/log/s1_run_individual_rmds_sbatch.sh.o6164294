@@ -1,0 +1,285 @@
+* The library is already synchronized with the lockfile.
+> args <- commandArgs(trailingOnly = TRUE)
+> 
+> library(rmarkdown)
+> rmarkdown::render(args[1])
+  |                                                                              |                                                                      |   0%  |                                                                              |.........                                                             |  12%
+   inline R code fragments
+
+  |                                                                              |..................                                                    |  25%
+label: load packages (with options) 
+List of 2
+ $ message: logi FALSE
+ $ warning: logi FALSE
+
+  |                                                                              |..........................                                            |  38%
+  ordinary text without R code
+
+  |                                                                              |...................................                                   |  50%
+label: setup directories
+  |                                                                              |............................................                          |  62%
+  ordinary text without R code
+
+  |                                                                              |....................................................                  |  75%
+label: quantify_mRNA
+  |                                                                              |.............................................................         |  88%
+  ordinary text without R code
+
+  |                                                                              |......................................................................| 100%
+label: session_info
+
+/fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/bin/pandoc +RTS -K512m -RTS s1-1-mRNA-quantification.knit.md --to html4 --from markdown+autolink_bare_uris+tex_math_single_backslash --output s1-1-mRNA-quantification.html --lua-filter /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/lib/R/library/rmarkdown/rmarkdown/lua/pagebreak.lua --lua-filter /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/lib/R/library/rmarkdown/rmarkdown/lua/latex-div.lua --embed-resources --standalone --variable bs3=TRUE --section-divs --table-of-contents --toc-depth 2 --template /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/lib/R/library/rmarkdown/rmd/h/default.html --highlight-style haddock --variable theme=bootstrap --mathjax --variable 'mathjax-url=https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML' --include-in-header /tmp/6164294.1.all.q/RtmpI60c74/rmarkdown-str4b1033847c23.html 
+> 
+> if(TRUE){
++     full.rmd.path <- normalizePath(args[1])
++ 
++     doc.dir <- file.path(
++         gsub("/R/", "/doc/", dirname(full.rmd.path))
++     )
++ 
++     create.dir <- function(dir.name){
++         if(dir.exists(dir.name) == FALSE) {
++             dir.create(dir.name, recursive = TRUE)
++         }
++     }
++ 
++     create.dir(doc.dir)
++ 
++     ## Move knitr output files to doc dir
++     non.rmd.files <- grep(
++         list.files(
++             dirname(full.rmd.path),
++             pattern = gsub(".rmd", "", basename(full.rmd.path)),
++             full.names = TRUE
++         ),
++         pattern = ".rmd$",
++         inv = TRUE,
++         value = TRUE
++     )
++ 
++     non.rmd.files <- basename(non.rmd.files[!file.info(non.rmd.files)$isdir])
++     
++     file.rename(
++         from = file.path(dirname(full.rmd.path), non.rmd.files),
++         to = file.path(doc.dir, non.rmd.files)
++     )
++ 
++     ## If figure directory exists
++     non.rmd.dir <- file.path(gsub(".rmd", "_files", basename(full.rmd.path)))
++ 
++     if(dir.exists(file.path(dirname(full.rmd.path), non.rmd.dir))){
++ 
++         file.mv.cmd <- paste(
++             "rsync", "--remove-source-files", "-r",
++             file.path(dirname(full.rmd.path), non.rmd.dir),
++             file.path(doc.dir)
++         )
++ 
++         system(file.mv.cmd)
++ 
++         empty.file.rm.cmd <- paste(
++             "find",
++             file.path(dirname(full.rmd.path), non.rmd.dir),
++             "-type", "d",
++             "-empty", "-delete"
++         )
++ 
++         system(empty.file.rm.cmd)
++         
++     } else {"No output dir"}
++     
++ } else {
++     "knitr output not moved"
++ }
+[1] "No output dir"
+> 
+* The library is already synchronized with the lockfile.
+> args <- commandArgs(trailingOnly = TRUE)
+> 
+> library(rmarkdown)
+> rmarkdown::render(args[1])
+  |                                                                              |                                                                      |   0%  |                                                                              |.........                                                             |  12%
+   inline R code fragments
+
+  |                                                                              |..................                                                    |  25%
+label: load_packages (with options) 
+List of 2
+ $ message: logi FALSE
+ $ warning: logi FALSE
+
+  |                                                                              |..........................                                            |  38%
+  ordinary text without R code
+
+  |                                                                              |...................................                                   |  50%
+label: setup_directories
+  |                                                                              |............................................                          |  62%
+  ordinary text without R code
+
+  |                                                                              |....................................................                  |  75%
+label: download_gtf_files
+  |                                                                              |.............................................................         |  88%
+  ordinary text without R code
+
+  |                                                                              |......................................................................| 100%
+label: session_info
+
+/fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/bin/pandoc +RTS -K512m -RTS s1-2-download-publically-available-data.knit.md --to html4 --from markdown+autolink_bare_uris+tex_math_single_backslash --output s1-2-download-publically-available-data.html --lua-filter /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/lib/R/library/rmarkdown/rmarkdown/lua/pagebreak.lua --lua-filter /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/lib/R/library/rmarkdown/rmarkdown/lua/latex-div.lua --embed-resources --standalone --variable bs3=TRUE --section-divs --table-of-contents --toc-depth 2 --template /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/lib/R/library/rmarkdown/rmd/h/default.html --highlight-style haddock --variable theme=bootstrap --mathjax --variable 'mathjax-url=https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML' --include-in-header /tmp/6164294.1.all.q/RtmpeiApMm/rmarkdown-str48065bf560ad.html 
+> 
+> if(TRUE){
++     full.rmd.path <- normalizePath(args[1])
++ 
++     doc.dir <- file.path(
++         gsub("/R/", "/doc/", dirname(full.rmd.path))
++     )
++ 
++     create.dir <- function(dir.name){
++         if(dir.exists(dir.name) == FALSE) {
++             dir.create(dir.name, recursive = TRUE)
++         }
++     }
++ 
++     create.dir(doc.dir)
++ 
++     ## Move knitr output files to doc dir
++     non.rmd.files <- grep(
++         list.files(
++             dirname(full.rmd.path),
++             pattern = gsub(".rmd", "", basename(full.rmd.path)),
++             full.names = TRUE
++         ),
++         pattern = ".rmd$",
++         inv = TRUE,
++         value = TRUE
++     )
++ 
++     non.rmd.files <- basename(non.rmd.files[!file.info(non.rmd.files)$isdir])
++     
++     file.rename(
++         from = file.path(dirname(full.rmd.path), non.rmd.files),
++         to = file.path(doc.dir, non.rmd.files)
++     )
++ 
++     ## If figure directory exists
++     non.rmd.dir <- file.path(gsub(".rmd", "_files", basename(full.rmd.path)))
++ 
++     if(dir.exists(file.path(dirname(full.rmd.path), non.rmd.dir))){
++ 
++         file.mv.cmd <- paste(
++             "rsync", "--remove-source-files", "-r",
++             file.path(dirname(full.rmd.path), non.rmd.dir),
++             file.path(doc.dir)
++         )
++ 
++         system(file.mv.cmd)
++ 
++         empty.file.rm.cmd <- paste(
++             "find",
++             file.path(dirname(full.rmd.path), non.rmd.dir),
++             "-type", "d",
++             "-empty", "-delete"
++         )
++ 
++         system(empty.file.rm.cmd)
++         
++     } else {"No output dir"}
++     
++ } else {
++     "knitr output not moved"
++ }
+[1] "No output dir"
+> 
+* The library is already synchronized with the lockfile.
+> args <- commandArgs(trailingOnly = TRUE)
+> 
+> library(rmarkdown)
+> rmarkdown::render(args[1])
+  |                                                                              |                                                                      |   0%  |                                                                              |.........                                                             |  12%
+   inline R code fragments
+
+  |                                                                              |..................                                                    |  25%
+label: load_packages (with options) 
+List of 2
+ $ message: logi FALSE
+ $ warning: logi FALSE
+
+  |                                                                              |..........................                                            |  38%
+  ordinary text without R code
+
+  |                                                                              |...................................                                   |  50%
+label: setup_directories
+  |                                                                              |............................................                          |  62%
+  ordinary text without R code
+
+  |                                                                              |....................................................                  |  75%
+label: download_gtf_files
+  |                                                                              |.............................................................         |  88%
+  ordinary text without R code
+
+  |                                                                              |......................................................................| 100%
+label: session_info
+
+/fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/bin/pandoc +RTS -K512m -RTS s1-3-mRNA-quantification-Chang.knit.md --to html4 --from markdown+autolink_bare_uris+tex_math_single_backslash --output s1-3-mRNA-quantification-Chang.html --lua-filter /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/lib/R/library/rmarkdown/rmarkdown/lua/pagebreak.lua --lua-filter /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/lib/R/library/rmarkdown/rmarkdown/lua/latex-div.lua --embed-resources --standalone --variable bs3=TRUE --section-divs --table-of-contents --toc-depth 2 --template /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/lib/R/library/rmarkdown/rmd/h/default.html --highlight-style haddock --variable theme=bootstrap --mathjax --variable 'mathjax-url=https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML' --include-in-header /tmp/6164294.1.all.q/RtmpQGRaYf/rmarkdown-str1eff6b876c20.html 
+> 
+> if(TRUE){
++     full.rmd.path <- normalizePath(args[1])
++ 
++     doc.dir <- file.path(
++         gsub("/R/", "/doc/", dirname(full.rmd.path))
++     )
++ 
++     create.dir <- function(dir.name){
++         if(dir.exists(dir.name) == FALSE) {
++             dir.create(dir.name, recursive = TRUE)
++         }
++     }
++ 
++     create.dir(doc.dir)
++ 
++     ## Move knitr output files to doc dir
++     non.rmd.files <- grep(
++         list.files(
++             dirname(full.rmd.path),
++             pattern = gsub(".rmd", "", basename(full.rmd.path)),
++             full.names = TRUE
++         ),
++         pattern = ".rmd$",
++         inv = TRUE,
++         value = TRUE
++     )
++ 
++     non.rmd.files <- basename(non.rmd.files[!file.info(non.rmd.files)$isdir])
++     
++     file.rename(
++         from = file.path(dirname(full.rmd.path), non.rmd.files),
++         to = file.path(doc.dir, non.rmd.files)
++     )
++ 
++     ## If figure directory exists
++     non.rmd.dir <- file.path(gsub(".rmd", "_files", basename(full.rmd.path)))
++ 
++     if(dir.exists(file.path(dirname(full.rmd.path), non.rmd.dir))){
++ 
++         file.mv.cmd <- paste(
++             "rsync", "--remove-source-files", "-r",
++             file.path(dirname(full.rmd.path), non.rmd.dir),
++             file.path(doc.dir)
++         )
++ 
++         system(file.mv.cmd)
++ 
++         empty.file.rm.cmd <- paste(
++             "find",
++             file.path(dirname(full.rmd.path), non.rmd.dir),
++             "-type", "d",
++             "-empty", "-delete"
++         )
++ 
++         system(empty.file.rm.cmd)
++         
++     } else {"No output dir"}
++     
++ } else {
++     "knitr output not moved"
++ }
+[1] "No output dir"
+> 

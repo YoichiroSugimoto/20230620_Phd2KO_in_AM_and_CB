@@ -18,13 +18,12 @@ output:
 
 # Overview
 
-Salmon index is prepared.
-
+Salmon index is prepared for the quantification of RNA-Seq data.
 
 # Setup
 
 
-```{r load packages, message = FALSE, warning = FALSE}
+```{r load_packages, message = FALSE, warning = FALSE}
 
 project.dir <- "/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB"
 
@@ -65,7 +64,7 @@ create.dirs(c(
 
 ```
 
-# Download GTF and fasta files
+# Download annotation data
 
 
 ```{r download gtf files}
@@ -120,7 +119,7 @@ download.file(
 
 ```
 
-# Summary of tx information
+# Summarise transcript information
 
 
 ```{r get tx information}
@@ -144,7 +143,7 @@ fwrite(all.tx.dt, file = all.tx.data.file)
 
 ```
 
-# Preparation for Salmon index
+# Preparation for Salmon index generation
 
 
 ```{r prep for salmon index}

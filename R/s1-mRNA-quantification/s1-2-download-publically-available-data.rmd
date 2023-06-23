@@ -18,13 +18,13 @@ output:
 
 # Overview
 
-The abundance of mRNA will be quantified by `Salmon`.
+RNA-Seq data by Chang et al. (PMID: 26560302) will be downloaded.
 
 
 # Setup
 
 
-```{r load packages, message = FALSE, warning = FALSE}
+```{r load_packages, message = FALSE, warning = FALSE}
 
 project.dir <- "/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB"
 
@@ -42,7 +42,7 @@ temp <- sapply(list.files(
 
 ## Set directories
 
-```{r setup directories}
+```{r setup_directories}
 
 results.dir <- file.path(project.dir, "results")
 s0.dir <- file.path(results.dir, "s0-public-data")
@@ -58,7 +58,7 @@ create.dirs(c(
 # Download public data
 
 
-```{r download gtf files}
+```{r download_gtf_files}
 
 public.sample.dt <- file.path(
     project.dir, "data/sample_data/public_data_source.csv"
@@ -92,7 +92,7 @@ lapply(
 
 # Session information
 
-```{r session info}
+```{r session_info}
 
 sessioninfo::session_info()
 

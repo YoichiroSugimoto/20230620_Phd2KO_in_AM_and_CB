@@ -18,12 +18,12 @@ output:
 
 # Overview
 
-
+A master table that summarises the results of the analysis of differentially expressed genes will be generated.
 
 # Setup
 
 
-```{r load packages, message = FALSE, warning = FALSE}
+```{r load_packages, message = FALSE, warning = FALSE}
 
 project.dir <- "/fast/AG_Sugimoto/home/users/yoichiro/projects/20230620_Phd2KO_in_AM_and_CB"
 
@@ -41,7 +41,7 @@ temp <- sapply(list.files(
 
 ## The input and output files and the directories
 
-```{r setup directories}
+```{r setup_directories}
 
 annot.dir <- file.path(project.dir, "annotation/")
 annot.ps.dir <- file.path(annot.dir, "mm39_annotation/processed_data/")
@@ -54,9 +54,9 @@ create.dirs(c(
 
 ```
 
-# Import data
+# Import the results of the analysis
 
-```{r download gtf files}
+```{r import_results}
 
 res.summary.dt <- file.path(s2.dir, "de-summary-consolidated.csv") %>% fread
 res.summary.dt[, gene_id := str_split_fixed(gene_id, "\\.", n = 2)[, 1]]
@@ -111,7 +111,7 @@ fwrite(res.summary.dt, file = file.path(s2.dir, "all-de-results.csv"))
 
 # Session information
 
-```{r session info}
+```{r session_info}
 
 sessioninfo::session_info()
 

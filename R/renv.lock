@@ -74,14 +74,6 @@
         "S4Vectors"
       ]
     },
-    "BiocManager": {
-      "Package": "BiocManager",
-      "Version": "1.30.18",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "b1a93bed5debda5775636086fdca017b",
-      "Requirements": []
-    },
     "BiocParallel": {
       "Package": "BiocParallel",
       "Version": "1.30.4",
@@ -147,28 +139,6 @@
         "geneplotter",
         "ggplot2",
         "locfit"
-      ]
-    },
-    "DRIMSeq": {
-      "Package": "DRIMSeq",
-      "Version": "1.26.0",
-      "Source": "Bioconductor",
-      "git_url": "https://git.bioconductor.org/packages/DRIMSeq",
-      "git_branch": "RELEASE_3_16",
-      "git_last_commit": "69cf942",
-      "git_last_commit_date": "2022-11-01",
-      "Hash": "5decca8af124af4f0704d7d1195c85f8",
-      "Requirements": [
-        "BiocGenerics",
-        "BiocParallel",
-        "GenomicRanges",
-        "IRanges",
-        "MASS",
-        "S4Vectors",
-        "edgeR",
-        "ggplot2",
-        "limma",
-        "reshape2"
       ]
     },
     "DelayedArray": {
@@ -722,21 +692,6 @@
         "vctrs"
       ]
     },
-    "edgeR": {
-      "Package": "edgeR",
-      "Version": "3.40.2",
-      "Source": "Bioconductor",
-      "git_url": "https://git.bioconductor.org/packages/edgeR",
-      "git_branch": "RELEASE_3_16",
-      "git_last_commit": "ddb1cb9",
-      "git_last_commit_date": "2023-01-19",
-      "Hash": "e5ea1fc0a6bb6213941c8be214bf493d",
-      "Requirements": [
-        "Rcpp",
-        "limma",
-        "locfit"
-      ]
-    },
     "emdbook": {
       "Package": "emdbook",
       "Version": "1.3.12",
@@ -1043,17 +998,6 @@
         "rlang"
       ]
     },
-    "limma": {
-      "Package": "limma",
-      "Version": "3.54.1",
-      "Source": "Bioconductor",
-      "git_url": "https://git.bioconductor.org/packages/limma",
-      "git_branch": "RELEASE_3_16",
-      "git_last_commit": "e4e922d",
-      "git_last_commit_date": "2023-01-26",
-      "Hash": "e23db0b76e0fe4ec94d4d46c42ecbd9f",
-      "Requirements": []
-    },
     "locfit": {
       "Package": "locfit",
       "Version": "1.5-9.6",
@@ -1230,18 +1174,6 @@
       "Repository": "CRAN",
       "Hash": "c9e8442ab69bc21c9697ecf856c1e6c7",
       "Requirements": []
-    },
-    "reshape2": {
-      "Package": "reshape2",
-      "Version": "1.4.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "bb5996d0bd962d214a11140d77589917",
-      "Requirements": [
-        "Rcpp",
-        "plyr",
-        "stringr"
-      ]
     },
     "restfulr": {
       "Package": "restfulr",
