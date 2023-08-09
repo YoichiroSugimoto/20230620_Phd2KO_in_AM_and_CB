@@ -1,7 +1,7 @@
 ---
 title: "s3-1 Concordance of differentially expressed genes in the comparison of CB vs AM and that of Phd2KO vs wild-type AM"
 author: "Yoichiro Sugimoto"
-date: "23 June, 2023"
+date: "09 August, 2023"
 vignette: >
   %\VignetteIndexEntry{Bioconductor style for PDF documents}
   %\VignetteEngine{knitr::rmarkdown}
@@ -168,11 +168,28 @@ plotMA <- function(res.summary.dt, data.postfix = "Tissue", data.vals = c("AM", 
 
 
 ```r
-g.phd <- res.summary.dt[
-    (TPM_WT__CB_PHD2KO > 10 | TPM_PHD2KO__CB_PHD2KO > 10 |
-    TPM_WT__AM_PHD2KO > 10 | TPM_PHD2KO__AM_PHD2KO > 10) &
-    !is.na(padj__CB_PHD2KO) & !is.na(padj__AM_PHD2KO)
-] %T>%
+s1.sl.dt <- res.summary.dt[
+(TPM_WT__CB_PHD2KO > 10 | TPM_PHD2KO__CB_PHD2KO > 10 |
+ TPM_WT__AM_PHD2KO > 10 | TPM_PHD2KO__AM_PHD2KO > 10) &
+!is.na(padj__CB_PHD2KO) & !is.na(padj__AM_PHD2KO)
+]
+
+export.base.cols <- c("gene_id", "gene_name", "gene_type")
+
+s1.rawdata.dt <- copy(s1.sl.dt[, c(
+    export.base.cols,
+    "log2fc__CB_PHD2KO", "log2fc__AM_PHD2KO"
+), with = FALSE])
+
+setnames(
+    s1.rawdata.dt,
+    old = c("log2fc__CB_PHD2KO", "log2fc__AM_PHD2KO"),
+    new = c("log2FC_by_Phd2ko_in_CB", "log2FC_by_Phd2ko_in_AM")
+)
+
+fwrite(s1.rawdata.dt, file.path(s3.dir, "Supplementary_Fig_1A.csv"))
+
+g.phd <- s1.sl.dt %T>%
     {print(paste0("n = ", nrow(.)))} %>%
     ggplot(
         aes(
@@ -246,6 +263,22 @@ p.res.1 <- plotMA(
     log2fc_cap = log2fc.cap
 )
 
+fig1b.raw.dt <- copy(p.res.1$sl.dt)
+
+fig1b.raw.dt <- fig1b.raw.dt[, c(
+    export.base.cols,
+    "TPM_AM__Tissue",
+    "capped_log2fc",
+    "PHD2_regulated_in_AM"
+), with = FALSE]
+
+setnames(
+    fig1b.raw.dt,
+    old = c("TPM_AM__Tissue", "capped_log2fc", "PHD2_regulated_in_AM"),
+    new = c("TPM in AM (WT)", "log2FC (CB vs AM)", "class")
+)
+
+fwrite(fig1b.raw.dt, file.path(s3.dir, "Fig_1B.csv"))
 
 p.res.1$sl.dt[order(padj__AM_PHD2KO, decreasing = TRUE)] %>%
     ggplot(
@@ -294,6 +327,22 @@ p.res.1$sl.dt[order(padj__AM_PHD2KO, decreasing = TRUE)] %>%
 ![](s3-1-CB-vs-PHD2KO-in-AM_files/figure-html/concordance-1.png)<!-- -->
 
 ```r
+fig1c.raw.dt <- copy(p.res.1$sl.dt)
+
+fig1c.raw.dt <- fig1c.raw.dt[, c(
+    export.base.cols,
+    "ave_log2fc",
+    "PHD2_regulated_in_AM"
+), with = FALSE]
+
+setnames(
+    fig1c.raw.dt,
+    old = c("ave_log2fc", "PHD2_regulated_in_AM"),
+    new = c("log2FC (CB vs AM)", "class")
+)
+
+fwrite(fig1c.raw.dt, file.path(s3.dir, "Fig_1C.csv"))
+
 ggplot(
     data = p.res.1$sl.dt,
     aes(
@@ -431,6 +480,21 @@ p.res.2 <- plotMA(
     log2fc_cap = log2fc.cap
 )
 
+s1b.raw.dt <- copy(p.res.2$sl.dt)
+
+s1b.raw.dt <- s1b.raw.dt[, c(
+    export.base.cols,
+    "ave_log2fc", "PHD2_regulated_in_AM"
+), with = FALSE]
+
+setnames(
+s1b.raw.dt,
+    old = c("ave_log2fc", "PHD2_regulated_in_AM"),
+    new = c("log2FC (CB vs AM)", "class")
+)
+
+fwrite(s1b.raw.dt, file.path(s3.dir, "Supplementary_Fig_1B.csv"))
+
 ggplot(
     data = p.res.2$sl.dt,
     aes(
@@ -498,7 +562,7 @@ sessioninfo::session_info()
 ##  collate  en_GB.UTF-8
 ##  ctype    en_GB.UTF-8
 ##  tz       Europe/Berlin
-##  date     2023-06-23
+##  date     2023-08-09
 ##  pandoc   2.19.2 @ /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/bin/ (via rmarkdown)
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────

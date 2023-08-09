@@ -1,7 +1,7 @@
 ---
 title: "s3-2 Analysis of genes associated with acute oxygen sensing"
 author: "Yoichiro Sugimoto"
-date: "23 June, 2023"
+date: "09 August, 2023"
 vignette: >
   %\VignetteIndexEntry{Bioconductor style for PDF documents}
   %\VignetteEngine{knitr::rmarkdown}
@@ -210,7 +210,7 @@ sessioninfo::session_info()
 ##  collate  en_GB.UTF-8
 ##  ctype    en_GB.UTF-8
 ##  tz       Europe/Berlin
-##  date     2023-06-23
+##  date     2023-08-09
 ##  pandoc   2.19.2 @ /fast/AG_Sugimoto/home/users/yoichiro/software/miniconda3/envs/20220601_CB_AM_PHD2/bin/ (via rmarkdown)
 ## 
 ## ─ Packages ───────────────────────────────────────────────────────────────────
